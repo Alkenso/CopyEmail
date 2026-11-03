@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CopyEmail test page</title>
+    <style>
+        body { max-width: 760px; margin: 64px auto; padding: 0 32px; font: 16px/1.6 system-ui, sans-serif; color: #243341; background: #f8fafb; }
+        h1 { margin-bottom: 4px; font-size: 32px; letter-spacing: -1px; }
+        h2 { font-size: 14px; color: #667784; font-weight: 500; margin: 0 0 12px; }
+        section { margin: 20px 0; padding: 24px; background: white; border: 1px solid #e1e6eb; border-radius: 12px; }
+        a { color: #225fa0; }
+        .clipped { width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .scroll { height: 80px; overflow: auto; }
+        button { font: inherit; padding: 6px 12px; }
+    </style>
+</head>
+<body>
+    <h1>CopyEmail</h1>
+    <p>Hover over a copy icon, then click. Only the email address goes to your clipboard.</p>
+    <section>
+        <h2>Plain text</h2>
+        <span>hello@example.com</span>
+    </section>
+    <section>
+        <h2>Visually clipped, copied in full</h2>
+        <div class="clipped">alexandra.long.name@example.com</div>
+    </section>
+    <section>
+        <h2>Shortened link with a full email behind it</h2>
+        <a href="mailto:customer.success@example.com">customer.succ…</a>
+    </section>
+    <section>
+        <h2>Tooltip and inline formatting</h2>
+        <p><span title="support.team@example.com">support.team@…</span></p>
+        <span>billing</span><strong>@example.com</strong>
+    </section>
+    <section>
+        <h2>Dynamic content</h2>
+        <button id="add" type="button">Add an email</button>
+        <div id="dynamic"></div>
+    </section>
+    <section>
+        <h2>Paste here to check the result</h2>
+        <input aria-label="Paste copied email" style="width:90%;padding:10px;font:inherit" placeholder="Paste your copied email">
+    </section>
+    <script>
+        document.querySelector('#add').addEventListener('click', () => {
+            const paragraph = document.createElement('p');
+            paragraph.textContent = 'new.contact@example.com';
+            document.querySelector('#dynamic').append(paragraph);
+        });
+    </script>
+</body>
+</html>

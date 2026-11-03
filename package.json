@@ -1,0 +1,13 @@
+{
+    "name": "copyemail",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Copy visible email addresses with a subtle inline button.",
+    "scripts": {
+        "test": "playwright test",
+        "check": "node --check extension/content.js && node --check extension/settings.js && node --check extension/options.js"
+    },
+    "devDependencies": {
+        "@playwright/test": "1.64.1"
+    }
+}

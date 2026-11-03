@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CopyEmail settings</title>
+    <link rel="stylesheet" href="options.css">
+    <script src="settings.js" defer></script>
+    <script src="options.js" defer></script>
+</head>
+<body>
+    <main>
+        <header>
+            <svg class="app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <rect x="8" y="8" width="12" height="12" rx="2"/>
+                <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>
+            </svg>
+            <div><h1>CopyEmail</h1><p>Choose where copy icons appear.</p></div>
+        </header>
+        <form id="settings-form">
+            <fieldset id="settings-fields" disabled>
+                <legend>Website access</legend>
+                <div class="mode-switch" role="group" aria-label="Website mode">
+                    <label><input type="radio" name="mode" value="everywhere-except" checked>All sites except…</label>
+                    <label><input type="radio" name="mode" value="nowhere-but">Only these sites</label>
+                </div>
+                <p id="mode-description">Show copy icons everywhere except on websites matching the list below.</p>
+
+                <label class="patterns-label" for="patterns">Website patterns</label>
+                <textarea id="patterns" rows="7" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="pattern-help pattern-examples empty-list" placeholder="example.com&#10;*.example.com&#10;mail?.example.org"></textarea>
+                <div id="pattern-help">
+                    <p>One hostname pattern per line. Only <code>*</code> and <code>?</code> are supported as wildcards:</p>
+                    <ul>
+                        <li><code>*</code> matches zero or more characters.</li>
+                        <li><code>?</code> matches exactly one.</li>
+                    </ul>
+                    <p>Matching ignores case and covers the entire hostname. Do not include <code>https://</code>, paths, or ports.</p>
+                </div>
+                <div id="pattern-examples" class="examples">
+                    <p><code>example.com</code> matches that website only.</p>
+                    <p><code>*.example.com</code> matches subdomains; add <code>example.com</code> separately for the main website.</p>
+                    <p><code>mail?.example.org</code> matches <code>mail1.example.org</code>, but not <code>mail12.example.org</code>.</p>
+                </div>
+                <p id="empty-list">An empty list enables CopyEmail everywhere.</p>
+                <div class="form-footer"><button type="submit">Save Settings</button><p id="status" role="status" aria-live="polite"></p></div>
+            </fieldset>
+        </form>
+        <p class="footnote">Settings are saved in this browser and apply to open tabs immediately. Rules use the website in the address bar, including its embedded frames.</p>
+    </main>
+</body>
+</html>
