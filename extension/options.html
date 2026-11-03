@@ -19,7 +19,12 @@
         </header>
         <form id="settings-form">
             <fieldset id="settings-fields" disabled>
-                <legend>Website access</legend>
+                <legend>Settings</legend>
+                <div role="tablist" aria-label="Settings tabs">
+                    <button type="button" role="tab" id="website-tab" aria-controls="website-panel" aria-selected="true">Websites</button>
+                    <button type="button" role="tab" id="patterns-tab" aria-controls="patterns-panel" aria-selected="false">Patterns</button>
+                </div>
+                <section id="website-panel" role="tabpanel" aria-labelledby="website-tab">
                 <div class="mode-switch" role="group" aria-label="Website mode">
                     <label><input type="radio" name="mode" value="everywhere-except" checked>All sites except…</label>
                     <label><input type="radio" name="mode" value="nowhere-but">Only these sites</label>
@@ -42,6 +47,12 @@
                     <p><code>mail?.example.org</code> matches <code>mail1.example.org</code>, but not <code>mail12.example.org</code>.</p>
                 </div>
                 <p id="empty-list">An empty list enables CopyEmail everywhere.</p>
+                </section>
+                <section id="patterns-panel" role="tabpanel" aria-labelledby="patterns-tab" hidden>
+                    <p>JavaScript regular expressions, without surrounding slashes. Matching ignores case. The full match is copied. Earlier rows take priority for overlapping matches.</p>
+                    <table><thead><tr><th aria-label="Enabled"></th><th>Regex (required)</th><th>Name (optional)</th><th></th></tr></thead><tbody id="copy-patterns"></tbody></table>
+                    <button type="button" id="add-pattern">Add Pattern</button>
+                </section>
                 <div class="form-footer"><button type="submit">Save Settings</button><p id="status" role="status" aria-live="polite"></p></div>
             </fieldset>
         </form>

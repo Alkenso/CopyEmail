@@ -53,3 +53,16 @@ test('parses one pattern per line and rejects URLs or ports instead of silently 
         expect(() => settings.parsePatterns(invalid)).toThrow(/hostname/i);
     }
 });
+
+test('copy patterns default safely, preserve empty lists, and validate regex syntax', () => {
+    const settings = settingsModule();
+    const defaults = settings.normalize().copyPatterns;
+    expect(defaults.map(pattern => pattern.name)).toEqual(['Email', 'Phone']);
+    expect(defaults.map(pattern => pattern.isOn)).toEqual([true, false]);
+    expect('Alice@example.com'.match(settings.validateRegex(defaults[0].regex))).toEqual(['Alice@example.com']);
+    expect('+1 (212) 555-0123'.match(settings.validateRegex(defaults[1].regex))).toEqual(['+1 (212) 555-0123']);
+    expect(settings.normalize({ copyPatterns: [] }).copyPatterns).toHaveLength(0);
+    expect(() => settings.validateRegex('[')).toThrow();
+    expect(() => settings.validateRegex(' ')).toThrow(/required/);
+    expect('ORDER-123'.match(settings.validateRegex('order-[0-9]+'))).toEqual(['ORDER-123']);
+});

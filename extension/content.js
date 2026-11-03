@@ -1,7 +1,7 @@
 (() => {
     'use strict';
 
-    const EMAIL_PATTERN = /[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}\b/gi;
+    let activePatterns = [];
     const SKIPPED = 'script,style,noscript,template,textarea,input,select,option,svg,canvas';
     const METADATA = '[href^="mailto:" i],[title],[aria-label],[data-email]';
     const Status = Object.freeze({ COPY: 'copy', COPIED: 'copied', ERROR: 'error' });
@@ -68,7 +68,16 @@
     }
 
     function emailMatches(value) {
-        return [...value.matchAll(EMAIL_PATTERN)];
+        const matches = activePatterns.flatMap(pattern => [...value.matchAll(pattern)])
+            .filter(match => match[0].length > 0);
+        const accepted = [];
+        for (const match of matches) {
+            if (!accepted.some(other => match.index < other.index + other[0].length &&
+                other.index < match.index + match[0].length)) {
+                accepted.push(match);
+            }
+        }
+        return accepted.sort((a, b) => a.index - b.index);
     }
 
     function metadataEmail(element) {
@@ -409,6 +418,13 @@
     document.fonts?.addEventListener('loadingdone', scheduleLayout);
     function applySettings(value) {
         const settings = CopyMailSettings.normalize(value);
+        activePatterns = settings.copyPatterns.filter(pattern => pattern.isOn).flatMap(pattern => {
+            try {
+                return [CopyMailSettings.validateRegex(pattern.regex)];
+            } catch {
+                return [];
+            }
+        });
         // All frames follow the website in the address bar, even across origins.
         const ancestors = location.ancestorOrigins;
         const pageUrl = ancestors.length ? ancestors[ancestors.length - 1] : location.href;
@@ -420,6 +436,9 @@
         }
         const shouldEnable = CopyMailSettings.isEnabled(settings, hostname);
         if (enabled === shouldEnable) {
+            if (enabled) {
+                scan();
+            }
             return;
         }
         enabled = shouldEnable;

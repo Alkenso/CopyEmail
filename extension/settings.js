@@ -4,12 +4,33 @@ const CopyMailSettings = (() => {
     const Mode = Object.freeze({ EXCLUDE: 'everywhere-except', INCLUDE: 'nowhere-but' });
     const STORAGE_KEY = 'websiteSettings';
 
+    const DEFAULT_PATTERNS = [
+        { predefined: 'email', isOn: true, regex: "[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,63}\\b", name: 'Email' },
+        { predefined: 'phone', isOn: false, regex: String.raw`\+?\b\d[\d ().-]{6,}\d\b`, name: 'Phone' }
+    ];
+
+    function validateRegex(source) {
+        if (!source.trim()) {
+            throw new Error('Regex is required.');
+        }
+        return new RegExp(source, 'gi');
+    }
+
     /** @typedef {{ mode: string, patterns: string[] }} WebsiteSettings */
 
     /** @returns {WebsiteSettings} */
     function normalize(value) {
         const patterns = Array.isArray(value?.patterns) ? value.patterns : [];
         return {
+            copyPatterns: (Array.isArray(value?.copyPatterns) ? value.copyPatterns : DEFAULT_PATTERNS)
+                .filter(pattern => pattern && typeof pattern.regex === 'string')
+                .map(pattern => ({
+                    predefined: DEFAULT_PATTERNS.find(defaultPattern => defaultPattern.predefined === pattern.predefined ||
+                        (!Object.hasOwn(pattern, 'predefined') && defaultPattern.regex === pattern.regex && defaultPattern.name === pattern.name))?.predefined || null,
+                    isOn: pattern.isOn === true,
+                    regex: pattern.regex,
+                    name: typeof pattern.name === 'string' ? pattern.name : ''
+                })),
             mode: value?.mode === Mode.INCLUDE ? Mode.INCLUDE : Mode.EXCLUDE,
             patterns: [...new Set(patterns.filter(pattern => typeof pattern === 'string')
                 .map(pattern => pattern.trim().toLowerCase()).filter(Boolean))]
@@ -62,5 +83,5 @@ const CopyMailSettings = (() => {
         return settings.mode === Mode.INCLUDE ? matched : !matched;
     }
 
-    return Object.freeze({ Mode, STORAGE_KEY, normalize, parsePatterns, matches, isEnabled });
+    return Object.freeze({ Mode, STORAGE_KEY, normalize, validateRegex, parsePatterns, matches, isEnabled });
 })();
