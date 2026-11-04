@@ -35,6 +35,8 @@ Enter one hostname pattern per line, without `https://`, paths, or ports. Matchi
 
 For example, `example.com` matches that website, while `*.example.com` matches its subdomains. Add both to cover both. Click **Save settings** to apply changes immediately to open tabs.
 
+The third tab, **Settings**, includes **Ignore hover hints**. It is enabled by default and skips copy icons in detected tooltips and temporary hints shown on hover. Change it and click **Save Settings** to apply your preference.
+
 ## Privacy and limits
 
 Everything runs locally: no analytics, servers, or network requests. Only website settings are stored. CopyEmail writes to the clipboard when you click a copy icon; it never reads the clipboard or stores email addresses.

@@ -20,6 +20,84 @@ function copyButton(page, email) {
     return page.getByRole('button', { name: `Copy ${email}`, exact: true });
 }
 
+for (const ignoreHoverHints of [false, true]) {
+    test(`hover hints are ${ignoreHoverHints ? 'ignored when enabled' : 'included when disabled'}`, async ({ page }) => {
+        const errors = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await page.addInitScript(ignore => {
+            window.chrome ??= {};
+            chrome.storage = {
+                local: { get: async () => ({ websiteSettings: { ignoreHoverHints: ignore } }) },
+                onChanged: { addListener(listener) {
+                    window.setHoverPreference = ignoreHoverHints => listener({
+                        websiteSettings: { newValue: { ignoreHoverHints } }
+                    }, 'local');
+                } }
+            };
+        }, ignoreHoverHints);
+        await load(page, `
+            <style>
+                #trigger { display:inline-block; }
+                #hint { display:none;position:absolute;background:white;top:90px;left:40px; }
+                #trigger:hover #hint, #trigger.pinned #hint { display:block; }
+            </style>
+            <main style="position:fixed;inset:30px">
+            <p>normal@example.com</p>
+            <div id="trigger" onclick="this.classList.add('pinned')">Hover for details<div id="hint">hover@example.com</div></div>
+            <button id="js-trigger" onmouseenter="document.querySelector('#js-hint').innerHTML = '<div style=&quot;position:absolute;top:160px;left:40px;background:white&quot;>dynamic@example.com</div>'">Dynamic hint</button>
+            <div id="js-hint"></div>
+            <button id="open" onclick="document.querySelector('#popup').hidden = false">Open popup</button>
+            <div id="popup" hidden style="position:absolute;top:220px;left:40px;background:white">clicked@example.com</div>
+            <div role="tooltip" style="position:absolute;top:280px;left:40px;background:white">tooltip@example.com</div>
+            </main>
+        `);
+        await expect(copyButton(page, 'normal@example.com')).toBeVisible();
+        await page.locator('#trigger').hover();
+        await expect(page.locator('#hint')).toBeVisible();
+        if (ignoreHoverHints) {
+            await expect(copyButton(page, 'hover@example.com')).toHaveCount(0);
+            await expect(copyButton(page, 'tooltip@example.com')).toHaveCount(0);
+        } else {
+            await expect(copyButton(page, 'hover@example.com')).toBeVisible();
+            await expect(copyButton(page, 'tooltip@example.com')).toBeVisible();
+        }
+        if (ignoreHoverHints) {
+            await page.locator('#trigger').click();
+            await page.mouse.move(900, 650);
+            await expect(page.locator('#hint')).toBeVisible();
+            await expect(copyButton(page, 'hover@example.com')).toBeVisible();
+            await page.locator('#trigger').evaluate(element => element.classList.remove('pinned'));
+            await expect(page.locator('#hint')).toBeHidden();
+        } else {
+            await page.evaluate(() => window.setHoverPreference(true));
+            await expect(copyButton(page, 'hover@example.com')).toHaveCount(0);
+            await page.evaluate(() => window.setHoverPreference(false));
+            await expect(copyButton(page, 'hover@example.com')).toBeVisible();
+        }
+        await page.locator('#js-trigger').hover();
+        await expect(page.locator('#js-hint')).toHaveText('dynamic@example.com');
+        // A normal dynamic update proves the debounced scan has processed the hint.
+        await page.locator('#js-hint').evaluate(element => {
+            element.insertAdjacentHTML('afterend', '<p style="margin-top:240px">updated@example.com</p>');
+        });
+        await expect(copyButton(page, 'updated@example.com')).toBeVisible();
+        if (ignoreHoverHints) {
+            await expect(copyButton(page, 'dynamic@example.com')).toHaveCount(0);
+        } else {
+            await expect(copyButton(page, 'dynamic@example.com')).toBeVisible();
+        }
+        await page.locator('#open').click();
+        await expect(copyButton(page, 'clicked@example.com')).toBeVisible();
+        if (ignoreHoverHints) {
+            await page.evaluate(() => window.setHoverPreference(false));
+            await expect(copyButton(page, 'tooltip@example.com')).toBeVisible();
+            await page.evaluate(() => window.setHoverPreference(true));
+            await expect(copyButton(page, 'tooltip@example.com')).toHaveCount(0);
+        }
+        expect(errors).toEqual([]);
+    });
+}
+
 for (const sample of [
     '<div aria-atomic="true" role="alert" class="js-flash-alert">We sent a confirmation email to volodymyr.vashurkin@controlup.com. Please follow the instructions in it to verify your email.</div>',
     '<span>volodymyr.vashurkin@controlup.com <span id="labels" class="ml-1"><span class="Label Label--accent">Primary</span> <span class="Label Label--warning">Unverified</span></span><div class="note">This email address is the default for GitHub notifications, such as replies to issues, pull requests, and similar activity.</div><div class="note">Your email address is managed by your identity provider.</div></span>'

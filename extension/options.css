@@ -59,6 +59,8 @@ button:disabled { opacity: .5; cursor: default; }
 
 [role=tablist] { display: flex; gap: 8px; margin-bottom: 20px; }
 [role=tab][aria-selected=false] { background: #647084; }
+.setting-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+#hover-hints-help { color: #647084; font-size: 13px; }
 table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; margin-bottom: 20px; }
 th, td { text-align: left; padding: 18px 12px; vertical-align: middle; border: 0; }
 th { color: #9298a1; background: #f7f8fa; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .35px; }
@@ -78,6 +80,7 @@ input[aria-invalid=true] { color: #d63030 !important; }
 .regex-error { display: block; color: #d63030; overflow-wrap: anywhere; }
 
 @media (prefers-color-scheme: dark) {
+    #hover-hints-help { color: #a8b4c6; }
     th { color: #a8b4c6; background: #262f3d; }
     tbody tr:not(:last-child) td { border-bottom-color: #354152; }
 }

@@ -23,6 +23,7 @@
                 <div role="tablist" aria-label="Settings tabs">
                     <button type="button" role="tab" id="website-tab" aria-controls="website-panel" aria-selected="true">Websites</button>
                     <button type="button" role="tab" id="patterns-tab" aria-controls="patterns-panel" aria-selected="false">Patterns</button>
+                    <button type="button" role="tab" id="general-tab" aria-controls="general-panel" aria-selected="false">Settings</button>
                 </div>
                 <section id="website-panel" role="tabpanel" aria-labelledby="website-tab">
                 <div class="mode-switch" role="group" aria-label="Website mode">
@@ -52,6 +53,10 @@
                     <p>JavaScript regular expressions, without surrounding slashes. Matching ignores case. The full match is copied. Earlier rows take priority for overlapping matches.</p>
                     <table><thead><tr><th aria-label="Enabled"></th><th>Regex (required)</th><th>Name (optional)</th><th></th></tr></thead><tbody id="copy-patterns"></tbody></table>
                     <button type="button" id="add-pattern">Add Pattern</button>
+                </section>
+                <section id="general-panel" role="tabpanel" aria-labelledby="general-tab" hidden>
+                    <label class="setting-toggle"><input type="checkbox" id="ignore-hover-hints" aria-describedby="hover-hints-help" checked>Ignore hover hints</label>
+                    <p id="hover-hints-help">Skip copy icons in detected tooltips and temporary hints that appear on hover.</p>
                 </section>
                 <div class="form-footer"><button type="submit">Save Settings</button><p id="status" role="status" aria-live="polite"></p></div>
             </fieldset>

@@ -16,12 +16,13 @@ const CopyMailSettings = (() => {
         return new RegExp(source, 'gi');
     }
 
-    /** @typedef {{ mode: string, patterns: string[] }} WebsiteSettings */
+    /** @typedef {{ mode: string, patterns: string[], ignoreHoverHints: boolean }} WebsiteSettings */
 
     /** @returns {WebsiteSettings} */
     function normalize(value) {
         const patterns = Array.isArray(value?.patterns) ? value.patterns : [];
         return {
+            ignoreHoverHints: value?.ignoreHoverHints !== false,
             copyPatterns: (Array.isArray(value?.copyPatterns) ? value.copyPatterns : DEFAULT_PATTERNS)
                 .filter(pattern => pattern && typeof pattern.regex === 'string')
                 .map(pattern => ({

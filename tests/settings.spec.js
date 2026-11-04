@@ -66,3 +66,16 @@ test('copy patterns default safely, preserve empty lists, and validate regex syn
     expect(() => settings.validateRegex(' ')).toThrow(/required/);
     expect('ORDER-123'.match(settings.validateRegex('order-[0-9]+'))).toEqual(['ORDER-123']);
 });
+
+test('ignoring hover hints defaults on and preserves an explicit preference', () => {
+    const settings = settingsModule();
+    for (const value of [undefined, {}, { ignoreHoverHints: true }]) {
+        expect(settings.normalize(value).ignoreHoverHints).toBe(true);
+    }
+    const enabled = settings.normalize({ ignoreHoverHints: true });
+    expect(enabled.ignoreHoverHints).toBe(true);
+    expect(settings.normalize(enabled).ignoreHoverHints).toBe(true);
+    const disabled = settings.normalize({ ignoreHoverHints: false });
+    expect(disabled.ignoreHoverHints).toBe(false);
+    expect(settings.normalize(disabled).ignoreHoverHints).toBe(false);
+});

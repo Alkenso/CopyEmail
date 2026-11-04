@@ -2,6 +2,11 @@
     'use strict';
 
     let activePatterns = [];
+    let ignoreHoverHints = false;
+    let lastHoverTime = -Infinity;
+    let hoveredElements = [];
+    let hoverHints = new WeakSet();
+    let activatedHints = new WeakSet();
     const SKIPPED = 'script,style,noscript,template,textarea,input,select,option,svg,canvas';
     const METADATA = '[href^="mailto:" i],[title],[aria-label],[data-email]';
     const Status = Object.freeze({ COPY: 'copy', COPIED: 'copied', ERROR: 'error' });
@@ -349,7 +354,8 @@
     function positionButtons() {
         layoutFrame = 0;
         for (const record of records.values()) {
-            const rect = visibleRect(record.range, record.element);
+            const hoverHint = isHoverHint(record, record);
+            const rect = ignoreHoverHints && hoverHint ? null : visibleRect(record.range, record.element);
             record.button.hidden = !rect;
             if (rect) {
                 // Stay at the visible trailing edge, including text-overflow: ellipsis.
@@ -400,6 +406,29 @@
         return spacer;
     }
 
+    function isHoverHint(candidate, previous) {
+        const recentHover = performance.now() - lastHoverTime < 1500;
+        const appearedOnHover = recentHover && (!previous || previous.button.hidden) &&
+            Boolean(visibleRect(candidate.range, candidate.element));
+        for (let element = candidate.element; element; element = parentElement(element)) {
+            if (activatedHints.has(element)) {
+                if (element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) {
+                    return false;
+                }
+                activatedHints.delete(element);
+            }
+            if (hoverHints.has(element) || element.matches('[role="tooltip"],tool-tip,[popover="hint"]')) {
+                return true;
+            }
+            if (appearedOnHover && !hoveredElements.includes(element) &&
+                /^(absolute|fixed)$/.test(getComputedStyle(element).position)) {
+                hoverHints.add(element);
+                return true;
+            }
+        }
+        return false;
+    }
+
     function scan() {
         scanTimer = 0;
         if (!enabled) {
@@ -412,6 +441,12 @@
         observedRoots.clear();
         const collected = new Map();
         collectCandidates(document.body || document.documentElement, collected);
+        for (const [key, candidate] of collected) {
+            const hoverHint = isHoverHint(candidate, records.get(key));
+            if (ignoreHoverHints && hoverHint) {
+                collected.delete(key);
+            }
+        }
         // Work backwards so splitting a text node preserves earlier match offsets.
         for (const candidate of [...collected.values()].reverse()) {
             candidate.spacer = reserveButtonSpace(candidate.range, candidate.element);
@@ -476,6 +511,25 @@
     for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'dblclick']) {
         window.addEventListener(type, handleCopyInteraction, true);
     }
+    window.addEventListener('pointerover', event => {
+        if (enabled && event.isTrusted && event.pointerType === 'mouse') {
+            lastHoverTime = performance.now();
+            hoveredElements = event.composedPath().filter(node => node instanceof Element);
+            if (ignoreHoverHints) {
+                scheduleScan();
+            }
+            scheduleLayout();
+        }
+    }, true);
+    for (const type of ['pointerdown', 'keydown']) {
+        window.addEventListener(type, () => {
+            lastHoverTime = -Infinity;
+            // A hover preview may become a persistent popup after activation.
+            activatedHints = hoverHints;
+            hoverHints = new WeakSet();
+            scheduleScan();
+        }, true);
+    }
     window.addEventListener('scroll', scheduleLayout, true);
     window.addEventListener('resize', scheduleLayout);
     window.addEventListener('load', scheduleScan, true);
@@ -483,6 +537,7 @@
     document.fonts?.addEventListener('loadingdone', scheduleLayout);
     function applySettings(value) {
         const settings = CopyMailSettings.normalize(value);
+        ignoreHoverHints = settings.ignoreHoverHints;
         activePatterns = settings.copyPatterns.filter(pattern => pattern.isOn).flatMap(pattern => {
             try {
                 return [CopyMailSettings.validateRegex(pattern.regex)];
