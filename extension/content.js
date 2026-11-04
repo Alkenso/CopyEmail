@@ -50,6 +50,7 @@
     shadow.append(style);
 
     let records = new Map();
+    const spacers = new WeakSet();
     const copyActions = new WeakMap();
     let nextNodeId = 0;
     const nodeIds = new WeakMap();
@@ -115,7 +116,9 @@
             nodeIds.set(node, ++nextNodeId);
         }
         const key = `${nodeIds.get(node)}:${range.startOffset}:${email}`;
-        candidates.set(key, { range, email, element });
+        const candidate = { range, email, element };
+        candidates.set(key, candidate);
+        return candidate;
     }
 
     function collectCandidates(root, candidates, metadataElements = new Set()) {
@@ -135,6 +138,9 @@
                 }
                 const range = document.createRange();
                 range.selectNodeContents(element);
+                if (spacers.has(element.lastChild)) {
+                    range.setEndBefore(element.lastChild);
+                }
                 addCandidate(candidates, range, email, element);
                 metadataElements.add(element);
             }
@@ -161,6 +167,9 @@
         }
 
         function visit(node) {
+            if (spacers.has(node)) {
+                return;
+            }
             if (node.nodeType === Node.TEXT_NODE) {
                 segments.push({ node, start: text.length, end: text.length + node.length });
                 text += node.data;
@@ -357,6 +366,40 @@
         }
     }
 
+    function reserveButtonSpace(range, element) {
+        const end = range.endContainer;
+        const next = end.nodeType === Node.TEXT_NODE
+            ? (range.endOffset === end.length ? end.nextSibling : null)
+            : end.childNodes[range.endOffset];
+        if (spacers.has(next)) {
+            return next;
+        }
+        const rect = visibleRect(range, element);
+        if (!rect) {
+            return null;
+        }
+        let container = end.nodeType === Node.TEXT_NODE ? end.parentNode : end;
+        while (container.parentElement && /^(inline|contents)$/.test(getComputedStyle(container).display)) {
+            container = container.parentElement;
+        }
+        const following = range.cloneRange();
+        following.collapse(false);
+        following.setEnd(container, container.childNodes.length);
+        if (![...following.getClientRects()].some(part => part.left < rect.right + 23 &&
+            part.right > rect.right + 3 && part.top < rect.bottom && part.bottom > rect.top)) {
+            return null;
+        }
+        const spacer = document.createElement('span');
+        spacer.setAttribute('aria-hidden', 'true');
+        spacer.style.cssText = 'all:initial!important;display:inline!important;padding-left:26px!important;font-size:0!important;line-height:0!important;pointer-events:none!important;';
+        spacers.add(spacer);
+        const insertion = range.cloneRange();
+        insertion.collapse(false);
+        insertion.insertNode(spacer);
+        range.setEndBefore(spacer);
+        return spacer;
+    }
+
     function scan() {
         scanTimer = 0;
         if (!enabled) {
@@ -367,18 +410,40 @@
         }
         observer.disconnect();
         observedRoots.clear();
-        observeRoot(document.documentElement);
+        const collected = new Map();
+        collectCandidates(document.body || document.documentElement, collected);
+        // Work backwards so splitting a text node preserves earlier match offsets.
+        for (const candidate of [...collected.values()].reverse()) {
+            candidate.spacer = reserveButtonSpace(candidate.range, candidate.element);
+        }
         const candidates = new Map();
-        collectCandidates(document.body || document.documentElement, candidates);
+        for (const candidate of collected.values()) {
+            // Inserting spacers can split the start nodes of subsequent matches.
+            const record = addCandidate(candidates, candidate.range, candidate.email, candidate.element);
+            record.spacer = candidate.spacer;
+        }
+        const retainedSpacers = new Set();
         for (const [key, candidate] of candidates) {
+            retainedSpacers.add(candidate.spacer);
             candidate.button = records.get(key)?.button || createButton(candidate.email);
         }
         for (const [key, record] of records) {
             if (!candidates.has(key)) {
                 record.button.remove();
             }
+            if (!retainedSpacers.has(record.spacer)) {
+                record.spacer?.remove();
+            }
         }
         records = candidates;
+        // Spacer insertion must not trigger another scan, including in shadow roots.
+        const roots = [...observedRoots];
+        observer.disconnect();
+        observedRoots.clear();
+        observeRoot(document.documentElement);
+        for (const root of roots) {
+            observeRoot(root);
+        }
         scheduleLayout();
     }
 
@@ -460,6 +525,7 @@
             layoutFrame = 0;
             for (const record of records.values()) {
                 record.button.remove();
+                record.spacer?.remove();
             }
             records.clear();
             host.remove();

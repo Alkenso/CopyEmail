@@ -20,6 +20,106 @@ function copyButton(page, email) {
     return page.getByRole('button', { name: `Copy ${email}`, exact: true });
 }
 
+for (const sample of [
+    '<div aria-atomic="true" role="alert" class="js-flash-alert">We sent a confirmation email to volodymyr.vashurkin@controlup.com. Please follow the instructions in it to verify your email.</div>',
+    '<span>volodymyr.vashurkin@controlup.com <span id="labels" class="ml-1"><span class="Label Label--accent">Primary</span> <span class="Label Label--warning">Unverified</span></span><div class="note">This email address is the default for GitHub notifications, such as replies to issues, pull requests, and similar activity.</div><div class="note">Your email address is managed by your identity provider.</div></span>'
+]) {
+    for (const width of [1000, 390]) {
+        test(`keeps the copy button clear of following GitHub ${sample.startsWith('<div') ? 'confirmation text' : 'email labels'} at ${width}px`, async ({ page }) => {
+            const errors = [];
+            page.on('pageerror', error => errors.push(error.message));
+            page.on('console', message => {
+                if (message.type() === 'error') {
+                    errors.push(message.text());
+                }
+            });
+            await page.setViewportSize({ width, height: 700 });
+            await load(page, sample);
+            const button = copyButton(page, 'volodymyr.vashurkin@controlup.com');
+            await expect(button).toBeVisible();
+            const overlaps = await button.evaluate(element => {
+                const box = element.getBoundingClientRect();
+                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                const collisions = [];
+                while (walker.nextNode()) {
+                    const node = walker.currentNode;
+                    for (let index = 0; index < node.length; index++) {
+                        if (!node.data[index].trim()) {
+                            continue;
+                        }
+                        const range = document.createRange();
+                        range.setStart(node, index);
+                        range.setEnd(node, index + 1);
+                        for (const rect of range.getClientRects()) {
+                            if (rect.left < box.right && rect.right > box.left && rect.top < box.bottom && rect.bottom > box.top) {
+                                collisions.push(node.data[index]);
+                            }
+                        }
+                    }
+                }
+                return collisions;
+            });
+            expect(overlaps).toEqual([]);
+            await page.screenshot({ path: test.info().outputPath('github-spacing.png'), fullPage: true });
+            await button.click();
+            await expect(button).toHaveAttribute('title', 'Copied!');
+            expect(errors).toEqual([]);
+        });
+    }
+}
+
+for (const direction of ['row', 'column']) {
+    test(`preserves a popup with a ${direction} flex layout and an email at the end`, async ({ page }) => {
+        await load(page, `
+            <button id="popup" style="display:flex;flex-direction:${direction};gap:8px;align-items:center;justify-content:center;width:640px;padding:12px 20px;font:24px/32px Arial;border:0;border-radius:12px;background:#39424b;color:white">
+                <span>Manage email</span>
+                volodymyr.vashurkin@controlup.com
+            </button>
+            <script>
+                const popup = document.querySelector('#popup');
+                const email = document.createRange();
+                email.selectNode(popup.lastChild);
+                window.originalPopupLayout = {
+                    popup: popup.getBoundingClientRect().toJSON(),
+                    email: email.getBoundingClientRect().toJSON()
+                };
+            </script>
+        `);
+        await expect(copyButton(page, 'volodymyr.vashurkin@controlup.com')).toBeVisible();
+        const layout = await page.locator('#popup').evaluate(popup => {
+            const email = document.createRange();
+            const node = [...popup.childNodes].find(node => node.textContent.includes('volodymyr.vashurkin@controlup.com'));
+            email.selectNode(node);
+            return { popup: popup.getBoundingClientRect().toJSON(), email: email.getBoundingClientRect().toJSON() };
+        });
+        expect(layout).toEqual(await page.evaluate(() => window.originalPopupLayout));
+    });
+}
+
+test('reuses button spacing across rescans and removes it with an obsolete match', async ({ page }) => {
+    await load(page, '<p id="line">alice@example.com and bob@example.com<span id="suffix"> are contacts.</span></p><div id="updates"></div>');
+    await expect(copyButton(page, 'alice@example.com')).toBeVisible();
+    await expect(copyButton(page, 'bob@example.com')).toBeVisible();
+    const suffix = page.locator('#suffix');
+    const initial = await suffix.boundingBox();
+    await page.locator('#updates').evaluate(element => element.textContent = 'new@example.com');
+    await expect(copyButton(page, 'new@example.com')).toBeVisible();
+    await expect(page.getByRole('button')).toHaveCount(3);
+    expect(await suffix.boundingBox()).toEqual(initial);
+    await expect(page.locator('#line')).toHaveText('alice@example.com and bob@example.com are contacts.');
+
+    await page.locator('#line').evaluate(element => element.firstChild.data = 'alice');
+    await expect(copyButton(page, 'alice@example.com')).toHaveCount(0);
+    const gap = await page.locator('#line').evaluate(element => {
+        const name = document.createRange();
+        name.selectNode(element.firstChild);
+        const following = document.createRange();
+        following.selectNode(element.firstChild.nextSibling);
+        return following.getBoundingClientRect().left - name.getBoundingClientRect().right;
+    });
+    expect(gap).toBeLessThan(1);
+});
+
 test('finds separate addresses, inline markup, and ignores hidden and editable text', async ({ page }) => {
     await load(page, `
         <p>alice@example.com and bob+news@example.co.uk.</p>
