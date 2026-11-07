@@ -84,3 +84,7 @@ input[aria-invalid=true] { color: #d63030 !important; }
     th { color: #a8b4c6; background: #262f3d; }
     tbody tr:not(:last-child) td { border-bottom-color: #354152; }
 }
+
+.name-error { display: block; color: #d63030; overflow-wrap: anywhere; }
+td textarea { min-height: 80px; padding: 8px; font-size: 12px; line-height: 1.5; white-space: pre; overflow: auto; }
+textarea[aria-invalid=true] { border-color: #d63030; }

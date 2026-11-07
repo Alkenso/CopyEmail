@@ -59,7 +59,7 @@ test('custom patterns remain simple regex copies even with legacy advanced setti
     await expect(page.getByRole('button', { name: 'Copy ORDER-12', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Copy ITEM-34', exact: true })).toBeVisible();
     expect(await page.evaluate(() => {
-        const pattern = CopyMailParser.compile([{ isOn: true, regex: 'ORDER-\\d+', parentLevels: 0, parentRegex: 'Batch-\\d+' }]);
+        const pattern = CopyMailParser.compile([{ name: 'Order', isOn: true, regexes: ['ORDER-\\d+'], parentLevels: 0, parentRegex: 'Batch-\\d+' }]);
         return CopyMailParser.enrich(CopyMailParser.find('ORDER-12', pattern)[0], document.querySelector('p'), node => node.parentElement);
     })).toBe('ORDER-12');
 });
@@ -138,4 +138,22 @@ test('address copy and globe preferences work independently and update live', as
         else await expect(globe).toHaveCount(0);
     }
     expect((await globe.boundingBox()).x).toBeGreaterThan((await copy.boundingBox()).x);
+});
+
+test('bare Polish address matches the full line and inherits Warszawa', async ({ page }) => {
+    await load(page, '<section><h2>Warszawa:</h2><p>Dubois 9, 00-182, Śródmieście</p></section>');
+    const address = 'Dubois 9, 00-182, Śródmieście, Warszawa';
+    await expect(page.getByRole('button', { name: `Copy ${address}`, exact: true })).toBeVisible();
+    await expect(mapLink(page, address)).toBeVisible();
+    await expect(page.locator('copymail-overlay button')).toHaveCount(1);
+    await expect(page.locator('copymail-overlay a')).toHaveCount(1);
+});
+
+test('native Asian address formats render copy and globe controls', async ({ page }) => {
+    const addresses = ['東京都新宿区西新宿2丁目8番1号', '北京市朝阳区建国路88号', '서울특별시 종로구 세종대로 209'];
+    await load(page, addresses.map(address => `<p>${address}</p>`).join(''));
+    for (const address of addresses) {
+        await expect(page.getByRole('button', { name: `Copy ${address}`, exact: true })).toBeVisible();
+        await expect(mapLink(page, address)).toBeVisible();
+    }
 });

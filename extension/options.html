@@ -50,10 +50,10 @@
                 <p id="empty-list">An empty list enables CopyEmail everywhere.</p>
                 </section>
                 <section id="patterns-panel" role="tabpanel" aria-labelledby="patterns-tab" hidden>
-                    <p>JavaScript regular expressions, without surrounding slashes. Matching ignores case. The full match is copied. Earlier rows take priority for overlapping matches.</p>
-                    <p>Use <code>|</code> for OR alternatives. The Addresses checkbox controls copy buttons; Google Maps links are controlled separately in Settings.</p>
-                    <table><thead><tr><th aria-label="Enabled"></th><th>Regex (required)</th><th>Name (optional)</th><th></th></tr></thead><tbody id="copy-patterns"></tbody></table>
-                    <button type="button" id="add-pattern">Add Pattern</button>
+                    <p>Each rule needs a name and at least one JavaScript regex, without surrounding slashes. Enter one regex per line. Any regex can match (OR); matching ignores case. Earlier rules take priority for overlapping matches.</p>
+                    <p>The Addresses rule controls copy buttons; Google Maps links are controlled separately in Settings.</p>
+                    <table><thead><tr><th aria-label="Enabled"></th><th>Regexes (one per line)</th><th>Name (required)</th><th></th></tr></thead><tbody id="copy-patterns"></tbody></table>
+                    <button type="button" id="add-pattern">Add Rule</button>
                 </section>
                 <section id="general-panel" role="tabpanel" aria-labelledby="general-tab" hidden>
                     <label class="setting-toggle"><input type="checkbox" id="ignore-hover-hints" aria-describedby="hover-hints-help" checked>Ignore hover hints</label>

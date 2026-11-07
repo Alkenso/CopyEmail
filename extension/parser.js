@@ -13,9 +13,12 @@ const CopyMailParser = (() => {
     }
 
     function compile(patterns) {
-        return patterns.filter(pattern => pattern.isOn).flatMap(pattern => {
+        return patterns.filter(pattern => pattern.isOn && typeof pattern.name === 'string' && pattern.name.trim()).flatMap(pattern => {
             try {
-                return [{ ...pattern, expression: CopyMailSettings.validateRegex(pattern.regex),
+                const expressions = pattern.regexes.map(CopyMailSettings.validateRegex);
+                return [{ ...pattern, expressions,
+                    starts: pattern.action === Action.MAP
+                        ? expressions.map(expression => new RegExp(`^(?:${expression.source})`, expression.flags.replace('g', ''))) : [],
                     parentExpression: pattern.parentRegex ? CopyMailSettings.validateRegex(pattern.parentRegex) : null }];
             } catch {
                 return [];
@@ -23,10 +26,40 @@ const CopyMailParser = (() => {
         });
     }
 
+    function findRuleMatches(text, pattern) {
+        const matches = [];
+        let offset = 0;
+        function collect(end) {
+            const part = text.slice(offset, end);
+            for (const expression of pattern.expressions) {
+                for (const match of part.matchAll(expression)) {
+                    match.index += offset;
+                    matches.push(match);
+                }
+            }
+        }
+        // A comma can separate localities or distinct addresses. Split only when the
+        // following fragment itself begins a recognized address, preserving DOM offsets.
+        if (pattern.starts.length) {
+            for (const comma of text.matchAll(/,[ \t]*/g)) {
+                const next = comma.index + comma[0].length;
+                if (pattern.starts.some(expression => expression.test(text.slice(next)))) {
+                    collect(comma.index);
+                    offset = next;
+                }
+            }
+        }
+        collect(text.length);
+        return matches;
+    }
+
     function find(text, patterns) {
         const accepted = [];
         for (const pattern of patterns) {
-            for (const match of text.matchAll(pattern.expression)) {
+            // Compile separately so captures/backreferences in one alternative cannot affect another.
+            const matches = findRuleMatches(text, pattern)
+                .sort((a, b) => a.index - b.index || b[0].length - a[0].length);
+            for (const match of matches) {
                 if (match[0] && !accepted.some(other => match.index < other.index + other.text.length &&
                     other.index < match.index + match[0].length)) {
                     accepted.push(new Match(match[0], match.index, pattern));
@@ -74,12 +107,14 @@ const CopyMailParser = (() => {
         const contexts = contextLines(element, pattern.parentLevels, parentElement);
         if (pattern.action === Action.MAP && geography) {
             const local = geography.find(match.text);
+            let parentCity = '';
             for (const context of contexts) {
                 const found = geography.find(context);
-                local.city ||= found.city;
+                parentCity ||= found.city;
                 local.country ||= found.country;
             }
-            for (const value of [local.city, local.country]) {
+            // A district may itself be in GeoNames; retain the enclosing city heading too.
+            for (const value of [parentCity || local.city, local.country]) {
                 if (value && !geography.contains(match.text, value)) values.push(value);
             }
         }

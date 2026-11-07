@@ -56,15 +56,18 @@ npm run check
 
 ## Address lookup
 
-The enabled Addresses preset detects common Polish, English, French, Spanish,
-Italian and German/Dutch street formats. A copy button followed by a globe appears beside each match. The globe opens Google Maps
+The enabled Addresses rule contains ten format families covering US/UK, European,
+Japanese, Chinese, Korean, Indian and Singaporean address layouts.
+See [address format coverage and sources](docs/address-formats.md) for examples and limits. A copy button followed by a globe appears beside each match. The globe opens Google Maps
 in a new tab. The Settings tab’s **Google Maps links for addresses** checkbox is on
 by default; turn it off to keep only the copy button. Compact city/country labels in up to five ancestors enrich the query;
 nearest labels win, ambiguous labels are omitted, and already-present names are
 not appended again. Missing context is left out; this is pattern recognition,
 not postal-address verification or geocoding. Unrecognized formats can use a custom regex.
 
-Custom patterns contain a regex and optional name; use `first|second` for OR.
+Custom rules require a name and one or more regexes, entered one per line.
+The regexes are matched with OR semantics; overlapping alternatives produce one
+match, preferring the longer one. Existing single-regex settings migrate automatically.
 The **Addresses** checkbox in Patterns controls address copy buttons only.
 **Google Maps links for addresses** in Settings controls globe links independently.
 Both on shows Copy then Globe; either can be used alone, and both off hides both.

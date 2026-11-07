@@ -17,24 +17,37 @@
         return CopyMailSettings.normalize({ copyPatterns: [...rows.children].map(row => ({
             predefined: row.dataset.predefined || null,
             isOn: row.querySelector('[type=checkbox]').checked,
-            regex: row.querySelector('[data-regex]').value,
+            regexes: row.querySelector('[data-regexes]').value.split(/\r?\n/),
             name: row.querySelector('[data-name]').value
         })) }).copyPatterns;
     }
 
     function validateRows() {
         let valid = true;
-        for (const input of rows.querySelectorAll('[data-regex]')) {
+        for (const row of rows.children) {
+            const name = row.querySelector('[data-name]');
+            const nameError = name.value.trim() ? '' : 'Rule name is required.';
+            name.setCustomValidity(nameError);
+            name.setAttribute('aria-invalid', String(Boolean(nameError)));
+            name.parentElement.querySelector('.name-error').textContent = nameError;
+            const input = row.querySelector('[data-regexes]');
             let error = '';
             try {
-                CopyMailSettings.validateRegex(input.value);
+                const lines = input.value.split(/\r?\n/);
+                if (!lines.some(line => line.trim())) throw new Error('At least one regex is required.');
+                lines.forEach((line, index) => {
+                    if (!line.trim()) return;
+                    try { CopyMailSettings.validateRegex(line); }
+                    catch (failure) { throw new Error(`Line ${index + 1}: ${failure.message}`); }
+                });
             } catch (failure) {
                 error = failure.message;
-                valid = false;
             }
+            input.setCustomValidity(error);
             input.setAttribute('aria-invalid', String(Boolean(error)));
             input.title = error;
             input.parentElement.querySelector('.regex-error').textContent = error;
+            valid &&= !nameError && !error;
         }
         addButton.disabled = !valid;
         return valid;
@@ -43,12 +56,12 @@
     function addRow(pattern) {
         const row = document.createElement('tr');
         row.dataset.predefined = pattern.predefined || '';
-        row.innerHTML = '<td><input type="checkbox" aria-label="Pattern enabled"></td><td><input data-regex aria-label="Regex" spellcheck="false"><small class="regex-error"></small></td><td><input data-name aria-label="Name"></td><td><button type="button" class="remove-pattern" aria-label="Remove pattern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></td>';
+        row.innerHTML = '<td><input type="checkbox" aria-label="Rule enabled"></td><td><textarea data-regexes aria-label="Regexes" rows="3" spellcheck="false" required></textarea><small class="regex-error"></small></td><td><input data-name aria-label="Name" required><small class="name-error"></small></td><td><button type="button" class="remove-pattern" aria-label="Remove rule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></td>';
         row.querySelector('[type=checkbox]').checked = pattern.isOn;
-        row.querySelector('[data-regex]').value = pattern.regex;
+        row.querySelector('[data-regexes]').value = pattern.regexes.join('\n');
         row.querySelector('[data-name]').value = pattern.name;
         if (pattern.predefined) {
-            row.querySelector('[data-regex]').readOnly = true;
+            row.querySelector('[data-regexes]').readOnly = true;
             row.querySelector('[data-name]').readOnly = true;
             row.querySelector('button').remove();
         } else {
@@ -64,8 +77,8 @@
         if (!validateRows()) {
             return;
         }
-        addRow({ isOn: true, regex: '', name: '' });
-        rows.lastElementChild.querySelector('[data-regex]').focus();
+        addRow({ isOn: true, regexes: [''], name: '' });
+        rows.lastElementChild.querySelector('[data-name]').focus();
         form.dispatchEvent(new Event('input'));
     });
     for (const tab of document.querySelectorAll('[role=tab]')) {

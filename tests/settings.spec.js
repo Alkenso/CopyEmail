@@ -59,8 +59,8 @@ test('copy patterns default safely, preserve empty lists, and validate regex syn
     const defaults = settings.normalize().copyPatterns;
     expect(defaults.map(pattern => pattern.name)).toEqual(['Email', 'Phone', 'Addresses']);
     expect(defaults.map(pattern => pattern.isOn)).toEqual([true, false, true]);
-    expect('Alice@example.com'.match(settings.validateRegex(defaults[0].regex))).toEqual(['Alice@example.com']);
-    expect('+1 (212) 555-0123'.match(settings.validateRegex(defaults[1].regex))).toEqual(['+1 (212) 555-0123']);
+    expect('Alice@example.com'.match(settings.validateRegex(defaults[0].regexes[0]))).toEqual(['Alice@example.com']);
+    expect('+1 (212) 555-0123'.match(settings.validateRegex(defaults[1].regexes[0]))).toEqual(['+1 (212) 555-0123']);
     expect(settings.normalize({ copyPatterns: [] }).copyPatterns).toHaveLength(0);
     expect(() => settings.validateRegex('[')).toThrow();
     expect(() => settings.validateRegex(' ')).toThrow(/required/);
