@@ -2,15 +2,20 @@
     'use strict';
 
     let activePatterns = [];
+    let geographyRequested = false;
     let ignoreHoverHints = false;
+    let googleMapsLinks = true;
+    let copyAddresses = true;
     let lastHoverTime = -Infinity;
     let hoveredElements = [];
+    let hoverActive = false;
     let hoverHints = new WeakSet();
     let activatedHints = new WeakSet();
     const SKIPPED = 'script,style,noscript,template,textarea,input,select,option,svg,canvas';
     const METADATA = '[href^="mailto:" i],[title],[aria-label],[data-email]';
-    const Status = Object.freeze({ COPY: 'copy', COPIED: 'copied', ERROR: 'error' });
+    const Status = Object.freeze({ COPY: 'copy', COPIED: 'copied', ERROR: 'error', MAP: 'map' });
     const ICONS = Object.freeze({
+        [Status.MAP]: '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
         [Status.COPY]: '<rect x="8" y="8" width="12" height="12" rx="2" fill="white"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
         [Status.COPIED]: '<path d="m5 12 4 4L19 6"/>',
         [Status.ERROR]: '<path d="m6 6 12 12M6 18 18 6"/>'
@@ -21,7 +26,7 @@
     const shadow = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = `
-        button {
+        button, a {
             all: initial;
             box-sizing: border-box;
             position: absolute;
@@ -38,8 +43,8 @@
             cursor: pointer;
             pointer-events: auto;
         }
-        button:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
-        button[hidden] { display: none; }
+        :is(button, a):focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+        :is(button, a)[hidden] { display: none; }
         button[data-status="copied"] { color: #16803c; opacity: 1; }
         button[data-status="error"] { color: #c53030; opacity: 1; }
         svg {
@@ -73,17 +78,18 @@
         return element === host || element.matches(SKIPPED) || element.isContentEditable;
     }
 
-    function emailMatches(value) {
-        const matches = activePatterns.flatMap(pattern => [...value.matchAll(pattern)])
-            .filter(match => match[0].length > 0);
-        const accepted = [];
-        for (const match of matches) {
-            if (!accepted.some(other => match.index < other.index + other[0].length &&
-                other.index < match.index + match[0].length)) {
-                accepted.push(match);
-            }
+    function enrichMatch(match, element) {
+        if (match.pattern.action === CopyMailParser.Action.MAP && match.pattern.parentLevels && !geographyRequested) {
+            geographyRequested = true;
+            CopyMailGeography.load().then(scheduleScan).catch(error => {
+                console.warn('CopyEmail could not load city names.', error);
+            });
         }
-        return accepted.sort((a, b) => a.index - b.index);
+        return CopyMailParser.enrich(match, element, parentElement, CopyMailGeography);
+    }
+
+    function emailMatches(value) {
+        return CopyMailParser.find(value, activePatterns);
     }
 
     function metadataEmail(element) {
@@ -99,7 +105,7 @@
         for (const value of [recipient, element.getAttribute('data-email'), element.getAttribute('title'), element.getAttribute('aria-label')]) {
             const matches = emailMatches(value || '');
             if (matches.length === 1) {
-                return matches[0][0];
+                return matches[0];
             }
         }
         return null;
@@ -115,13 +121,13 @@
             address.startsWith(parts[0]) && address.endsWith(parts[1]);
     }
 
-    function addCandidate(candidates, range, email, element) {
+    function addCandidate(candidates, range, email, element, action = CopyMailParser.Action.COPY) {
         const node = range.startContainer;
         if (!nodeIds.has(node)) {
             nodeIds.set(node, ++nextNodeId);
         }
-        const key = `${nodeIds.get(node)}:${range.startOffset}:${email}`;
-        const candidate = { range, email, element };
+        const key = `${nodeIds.get(node)}:${range.startOffset}:${action}:${email}`;
+        const candidate = { range, email, element, action };
         candidates.set(key, candidate);
         return candidate;
     }
@@ -134,7 +140,8 @@
             if (isSkipped(element) || element.closest(SKIPPED) || element.isContentEditable) {
                 continue;
             }
-            const email = metadataEmail(element);
+            const match = metadataEmail(element);
+            const email = match?.text;
             const label = element.textContent.trim();
             if (email && shortenedLabelMatches(label, email)) {
                 // Only the innermost label gets an icon when metadata is repeated.
@@ -146,7 +153,7 @@
                 if (spacers.has(element.lastChild)) {
                     range.setEndBefore(element.lastChild);
                 }
-                addCandidate(candidates, range, email, element);
+                addCandidate(candidates, range, enrichMatch(match, element), element, match.pattern.action);
                 metadataElements.add(element);
             }
         }
@@ -156,7 +163,7 @@
         function flush() {
             for (const match of emailMatches(text)) {
                 const start = match.index;
-                const end = start + match[0].length;
+                const end = start + match.text.length;
                 if (/(?:…|\.{3})$/.test(text.slice(0, start)) || /^(?:…|\.{3})/.test(text.slice(end))) {
                     continue;
                 }
@@ -165,7 +172,9 @@
                 const range = document.createRange();
                 range.setStart(first.node, start - first.start);
                 range.setEnd(last.node, end - last.start);
-                addCandidate(candidates, range, match[0], last.node.parentElement || last.node.getRootNode().host);
+                const element = last.node.parentElement || last.node.getRootNode().host;
+                const value = enrichMatch(match, element);
+                addCandidate(candidates, range, value, element, match.pattern.action);
             }
             text = '';
             segments = [];
@@ -253,7 +262,19 @@
         legacyCopy(email);
     }
 
-    function createButton(email) {
+    function createButton(email, action) {
+        if (action === CopyMailParser.Action.MAP) {
+            const link = document.createElement('a');
+            link.hidden = true;
+            link.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(email)}`;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            setStatus(link, email, Status.MAP);
+            link.title = `Open in Google Maps: ${email}`;
+            link.setAttribute('aria-label', link.title);
+            shadow.append(link);
+            return link;
+        }
         const button = document.createElement('button');
         button.type = 'button';
         button.hidden = true;
@@ -356,12 +377,14 @@
         for (const record of records.values()) {
             const hoverHint = isHoverHint(record, record);
             const rect = ignoreHoverHints && hoverHint ? null : visibleRect(record.range, record.element);
-            record.button.hidden = !rect;
+            if (record.button) record.button.hidden = !rect;
+            if (record.mapLink) record.mapLink.hidden = !rect;
             if (rect) {
                 // Stay at the visible trailing edge, including text-overflow: ellipsis.
-                const x = Math.min(rect.right + 3, document.documentElement.clientWidth - 20);
+                const x = Math.min(rect.right + 3, document.documentElement.clientWidth - (record.button && record.mapLink ? 43 : 20));
                 const y = Math.max(0, Math.min((rect.top + rect.bottom) / 2 - 10, window.innerHeight - 20));
-                record.button.style.transform = `translate(${x}px, ${y}px)`;
+                if (record.button) record.button.style.transform = `translate(${x}px, ${y}px)`;
+                if (record.mapLink) record.mapLink.style.transform = `translate(${x + (record.button ? 23 : 0)}px, ${y}px)`;
             }
         }
     }
@@ -372,12 +395,14 @@
         }
     }
 
-    function reserveButtonSpace(range, element) {
+    function reserveButtonSpace(range, element, hasMapLink) {
+        const width = hasMapLink ? 49 : 26;
         const end = range.endContainer;
         const next = end.nodeType === Node.TEXT_NODE
             ? (range.endOffset === end.length ? end.nextSibling : null)
             : end.childNodes[range.endOffset];
         if (spacers.has(next)) {
+            next.style.setProperty('padding-left', `${width}px`, 'important');
             return next;
         }
         const rect = visibleRect(range, element);
@@ -391,13 +416,14 @@
         const following = range.cloneRange();
         following.collapse(false);
         following.setEnd(container, container.childNodes.length);
-        if (![...following.getClientRects()].some(part => part.left < rect.right + 23 &&
+        if (![...following.getClientRects()].some(part => part.left < rect.right + width - 3 &&
             part.right > rect.right + 3 && part.top < rect.bottom && part.bottom > rect.top)) {
             return null;
         }
         const spacer = document.createElement('span');
         spacer.setAttribute('aria-hidden', 'true');
         spacer.style.cssText = 'all:initial!important;display:inline!important;padding-left:26px!important;font-size:0!important;line-height:0!important;pointer-events:none!important;';
+        spacer.style.setProperty('padding-left', `${width}px`, 'important');
         spacers.add(spacer);
         const insertion = range.cloneRange();
         insertion.collapse(false);
@@ -407,8 +433,11 @@
     }
 
     function isHoverHint(candidate, previous) {
-        const recentHover = performance.now() - lastHoverTime < 1500;
-        const appearedOnHover = recentHover && (!previous || previous.button.hidden) &&
+        // Delayed previews still belong to the hover while the pointer stays on its trigger.
+        // Pointer/key activation clears lastHoverTime so click-opened popups remain usable.
+        const activeHover = lastHoverTime !== -Infinity &&
+            (performance.now() - lastHoverTime < 1500 || hoverActive);
+        const appearedOnHover = activeHover && (!previous || (previous.button || previous.mapLink).hidden) &&
             Boolean(visibleRect(candidate.range, candidate.element));
         for (let element = candidate.element; element; element = parentElement(element)) {
             if (activatedHints.has(element)) {
@@ -449,23 +478,32 @@
         }
         // Work backwards so splitting a text node preserves earlier match offsets.
         for (const candidate of [...collected.values()].reverse()) {
-            candidate.spacer = reserveButtonSpace(candidate.range, candidate.element);
+            candidate.spacer = reserveButtonSpace(candidate.range, candidate.element, copyAddresses && googleMapsLinks && candidate.action === CopyMailParser.Action.MAP);
         }
         const candidates = new Map();
         for (const candidate of collected.values()) {
             // Inserting spacers can split the start nodes of subsequent matches.
-            const record = addCandidate(candidates, candidate.range, candidate.email, candidate.element);
+            const record = addCandidate(candidates, candidate.range, candidate.email, candidate.element, candidate.action);
             record.spacer = candidate.spacer;
         }
         const retainedSpacers = new Set();
         for (const [key, candidate] of candidates) {
             retainedSpacers.add(candidate.spacer);
-            candidate.button = records.get(key)?.button || createButton(candidate.email);
+            if (candidate.action !== CopyMailParser.Action.MAP || copyAddresses) {
+                candidate.button = records.get(key)?.button || createButton(candidate.email, CopyMailParser.Action.COPY);
+            }
+            if (googleMapsLinks && candidate.action === CopyMailParser.Action.MAP) {
+                candidate.mapLink = records.get(key)?.mapLink || createButton(candidate.email, CopyMailParser.Action.MAP);
+                candidate.button?.after(candidate.mapLink);
+            }
         }
         for (const [key, record] of records) {
             if (!candidates.has(key)) {
-                record.button.remove();
+                record.button?.remove();
+                record.mapLink?.remove();
             }
+            if (!candidates.get(key)?.button) record.button?.remove();
+            if (!candidates.get(key)?.mapLink) record.mapLink?.remove();
             if (!retainedSpacers.has(record.spacer)) {
                 record.spacer?.remove();
             }
@@ -514,12 +552,16 @@
     window.addEventListener('pointerover', event => {
         if (enabled && event.isTrusted && event.pointerType === 'mouse') {
             lastHoverTime = performance.now();
+            hoverActive = true;
             hoveredElements = event.composedPath().filter(node => node instanceof Element);
             if (ignoreHoverHints) {
                 scheduleScan();
             }
             scheduleLayout();
         }
+    }, true);
+    window.addEventListener('pointerout', event => {
+        if (event.isTrusted && event.pointerType === 'mouse') hoverActive = false;
     }, true);
     for (const type of ['pointerdown', 'keydown']) {
         window.addEventListener(type, () => {
@@ -538,13 +580,14 @@
     function applySettings(value) {
         const settings = CopyMailSettings.normalize(value);
         ignoreHoverHints = settings.ignoreHoverHints;
-        activePatterns = settings.copyPatterns.filter(pattern => pattern.isOn).flatMap(pattern => {
-            try {
-                return [CopyMailSettings.validateRegex(pattern.regex)];
-            } catch {
-                return [];
-            }
-        });
+        googleMapsLinks = settings.googleMapsLinks;
+        copyAddresses = settings.copyPatterns.some(pattern => pattern.predefined === 'address' && pattern.isOn);
+        const detectionPatterns = [...settings.copyPatterns];
+        if (googleMapsLinks && !detectionPatterns.some(pattern => pattern.predefined === 'address')) {
+            detectionPatterns.push(CopyMailSettings.normalize().copyPatterns.find(pattern => pattern.predefined === 'address'));
+        }
+        activePatterns = CopyMailParser.compile(detectionPatterns.map(pattern => pattern.predefined === 'address'
+            ? { ...pattern, isOn: copyAddresses || googleMapsLinks } : pattern));
         // All frames follow the website in the address bar, even across origins.
         const ancestors = location.ancestorOrigins;
         const pageUrl = ancestors.length ? ancestors[ancestors.length - 1] : location.href;
@@ -579,7 +622,8 @@
             scanTimer = 0;
             layoutFrame = 0;
             for (const record of records.values()) {
-                record.button.remove();
+                record.button?.remove();
+                record.mapLink?.remove();
                 record.spacer?.remove();
             }
             records.clear();

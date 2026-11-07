@@ -5,6 +5,7 @@
     const fields = document.querySelector('#settings-fields');
     const patterns = document.querySelector('#patterns');
     const ignoreHoverHints = document.querySelector('#ignore-hover-hints');
+    const googleMapsLinks = document.querySelector('#google-maps-links');
     const status = document.querySelector('#status');
     const saveButton = form.querySelector('button[type=submit]');
     let savedSettings = CopyMailSettings.normalize();
@@ -13,12 +14,12 @@
     const addButton = document.querySelector('#add-pattern');
 
     function readCopyPatterns() {
-        return [...rows.children].map(row => ({
+        return CopyMailSettings.normalize({ copyPatterns: [...rows.children].map(row => ({
             predefined: row.dataset.predefined || null,
             isOn: row.querySelector('[type=checkbox]').checked,
             regex: row.querySelector('[data-regex]').value,
             name: row.querySelector('[data-name]').value
-        }));
+        })) }).copyPatterns;
     }
 
     function validateRows() {
@@ -81,6 +82,7 @@
             const currentPatterns = CopyMailSettings.parsePatterns(patterns.value);
             return JSON.stringify(readCopyPatterns()) !== JSON.stringify(savedSettings.copyPatterns) ||
                 ignoreHoverHints.checked !== savedSettings.ignoreHoverHints ||
+                googleMapsLinks.checked !== savedSettings.googleMapsLinks ||
                 form.elements.mode.value !== savedSettings.mode ||
                 currentPatterns.length !== savedSettings.patterns.length ||
                 currentPatterns.some(pattern => !savedSettings.patterns.includes(pattern));
@@ -116,7 +118,8 @@
                 mode: form.elements.mode.value,
                 patterns: CopyMailSettings.parsePatterns(patterns.value),
                 copyPatterns: readCopyPatterns(),
-                ignoreHoverHints: ignoreHoverHints.checked
+                ignoreHoverHints: ignoreHoverHints.checked,
+                googleMapsLinks: googleMapsLinks.checked
             });
             fields.disabled = true;
             await chrome.storage.local.set({ [CopyMailSettings.STORAGE_KEY]: settings });
@@ -142,6 +145,7 @@
             patterns.value = settings.patterns.join('\n');
             updateDescription();
             ignoreHoverHints.checked = settings.ignoreHoverHints;
+            googleMapsLinks.checked = settings.googleMapsLinks;
             saveButton.disabled = true;
             fields.disabled = false;
         } catch {

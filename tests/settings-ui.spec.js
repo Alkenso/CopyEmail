@@ -31,8 +31,10 @@ test('the third Settings tab defaults hover filtering on and restores saved pref
     await expect(page.getByRole('tab')).toHaveText(['Websites', 'Patterns', 'Settings']);
     await page.getByRole('tab', { name: 'Settings', exact: true }).click();
     const checkbox = page.getByRole('checkbox', { name: 'Ignore hover hints', exact: true });
+    const maps = page.getByRole('checkbox', { name: 'Google Maps links for addresses', exact: true });
     const save = page.getByRole('button', { name: 'Save Settings', exact: true });
     await expect(checkbox).toBeChecked();
+    await expect(maps).toBeChecked();
     await expect(save).toBeDisabled();
     await checkbox.uncheck();
     await expect(save).toBeEnabled();
@@ -50,6 +52,15 @@ test('the third Settings tab defaults hover filtering on and restores saved pref
     await page.reload();
     await page.getByRole('tab', { name: 'Settings', exact: true }).click();
     await expect(checkbox).toBeChecked();
+    await maps.uncheck();
+    await save.click();
+    await expect(page.getByRole('status')).toHaveText('Settings saved.');
+    await page.reload();
+    await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+    await expect(maps).not.toBeChecked();
+    await maps.check();
+    await save.click();
+    await expect(page.getByRole('status')).toHaveText('Settings saved.');
     await page.screenshot({ path: test.info().outputPath('settings-tab.png'), fullPage: true });
     await page.setViewportSize({ width: 390, height: 700 });
     await expect(checkbox).toBeVisible();

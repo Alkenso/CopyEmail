@@ -20,7 +20,7 @@ test('loads as Manifest V3 and copies full addresses on HTTP, HTTPS and in frame
             contentType: 'text/html; charset=utf-8',
             body: `
                 <div id="popup" tabindex="-1"><p><a href="mailto:full.address@example.com?subject=Hi">full.addr…</a></p></div>
-                <textarea id="paste"></textarea><iframe src="http://frame.test/"></iframe>
+                <section><h2>Warszawa</h2><p>Aleja Rzeczypospolitej 18, 02-972 Wilanów</p></section><textarea id="paste"></textarea><iframe src="http://frame.test/"></iframe>
                 <script>
                     const popup = document.querySelector('#popup');
                     popup.focus();
@@ -42,6 +42,7 @@ test('loads as Manifest V3 and copies full addresses on HTTP, HTTPS and in frame
             await page.goto(`${protocol}://copymail.test/`);
             const button = page.getByRole('button', { name: 'Copy full.address@example.com', exact: true });
             await expect(button).toBeVisible();
+            await expect(page.getByRole('link', { name: 'Open in Google Maps: Aleja Rzeczypospolitej 18, 02-972 Wilanów, Warszawa', exact: true })).toBeVisible();
             await button.evaluate(element => element.click());
             await page.waitForTimeout(100);
             expect(await button.getAttribute('title')).toBe('Copy full.address@example.com');

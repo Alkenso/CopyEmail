@@ -39,7 +39,7 @@ The third tab, **Settings**, includes **Ignore hover hints**. It is enabled by d
 
 ## Privacy and limits
 
-Everything runs locally: no analytics, servers, or network requests. Only website settings are stored. CopyEmail writes to the clipboard when you click a copy icon; it never reads the clipboard or stores email addresses.
+Recognition runs locally, with no analytics or remote lookup requests. Clicking a globe link opens Google Maps with the detected address. Only website settings are stored. CopyEmail writes to the clipboard when you click a copy icon; it never reads the clipboard or stores email addresses.
 
 A shortened address can be copied in full only if the page exposes the complete value. Editable fields, image text, and Chrome's protected pages are not supported.
 
@@ -53,3 +53,25 @@ npx playwright install chromium
 npm test
 npm run check
 ```
+
+## Address lookup
+
+The enabled Addresses preset detects common Polish, English, French, Spanish,
+Italian and German/Dutch street formats. A copy button followed by a globe appears beside each match. The globe opens Google Maps
+in a new tab. The Settings tab’s **Google Maps links for addresses** checkbox is on
+by default; turn it off to keep only the copy button. Compact city/country labels in up to five ancestors enrich the query;
+nearest labels win, ambiguous labels are omitted, and already-present names are
+not appended again. Missing context is left out; this is pattern recognition,
+not postal-address verification or geocoding. Unrecognized formats can use a custom regex.
+
+Custom patterns contain a regex and optional name; use `first|second` for OR.
+The **Addresses** checkbox in Patterns controls address copy buttons only.
+**Google Maps links for addresses** in Settings controls globe links independently.
+Both on shows Copy then Globe; either can be used alone, and both off hides both.
+Address context lookup remains built in and checks up to five parent levels.
+
+`extension/data/cities.txt` contains 347,334 lowercase, unique, sorted names from
+34,205 GeoNames cities15000 records, including alternate names and translations.
+It loads once per page/frame when an address needs context, and is reused on rescans. Country names are generated
+once per frame using browser translations and kept in a sorted-insertion Set.
+See `extension/data/README.md` for attribution, licensing and regeneration.

@@ -6,14 +6,16 @@ const CopyMailSettings = (() => {
 
     const DEFAULT_PATTERNS = [
         { predefined: 'email', isOn: true, regex: "[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,63}\\b", name: 'Email' },
-        { predefined: 'phone', isOn: false, regex: String.raw`\+?\b\d[\d ().-]{6,}\d\b`, name: 'Phone' }
+        { predefined: 'phone', isOn: false, regex: String.raw`\+?\b\d[\d ().-]{6,}\d\b`, name: 'Phone' },
+        { predefined: 'address', isOn: true, action: 'map', parentLevels: 5, name: 'Addresses',
+            regex: String.raw`(?<![\p{L}\d])(?:(?:ul(?:ica)?\.?|al(?:eja|eje)?\.?|plac|osiedle|rue|avenue|via|calle)[ \t]+[\p{L}\p{M}.'’ -]{2,70}[ \t]+\d+[\p{L}]?(?:[/-]\d+)?|\d+[\p{L}]?[ \t]+[\p{L}\p{M}.'’ -]{2,70}[ \t]+(?:street|st|road|rd|avenue|ave|lane|ln|drive|dr|boulevard|blvd)\.?|[\p{L}\p{M}.'’ -]{2,70}(?:straße|strasse|straat)[ \t]+\d+[\p{L}]?)(?:,[ \t]*[\p{L}\p{M}\d .’'()-]+){0,3}` }
     ];
 
     function validateRegex(source) {
         if (!source.trim()) {
             throw new Error('Regex is required.');
         }
-        return new RegExp(source, 'gi');
+        return new RegExp(source, /\\[pP]\{/.test(source) ? 'giu' : 'gi');
     }
 
     /** @typedef {{ mode: string, patterns: string[], ignoreHoverHints: boolean }} WebsiteSettings */
@@ -21,16 +23,24 @@ const CopyMailSettings = (() => {
     /** @returns {WebsiteSettings} */
     function normalize(value) {
         const patterns = Array.isArray(value?.patterns) ? value.patterns : [];
+        const copyPatterns = Array.isArray(value?.copyPatterns) ? [...value.copyPatterns] : DEFAULT_PATTERNS;
+        if (copyPatterns.length && !copyPatterns.some(pattern => pattern?.predefined === 'address')) {
+            copyPatterns.push(DEFAULT_PATTERNS.find(pattern => pattern.predefined === 'address'));
+        }
         return {
             ignoreHoverHints: value?.ignoreHoverHints !== false,
-            copyPatterns: (Array.isArray(value?.copyPatterns) ? value.copyPatterns : DEFAULT_PATTERNS)
+            googleMapsLinks: value?.googleMapsLinks !== false,
+            copyPatterns: copyPatterns
                 .filter(pattern => pattern && typeof pattern.regex === 'string')
                 .map(pattern => ({
                     predefined: DEFAULT_PATTERNS.find(defaultPattern => defaultPattern.predefined === pattern.predefined ||
                         (!Object.hasOwn(pattern, 'predefined') && defaultPattern.regex === pattern.regex && defaultPattern.name === pattern.name))?.predefined || null,
                     isOn: pattern.isOn === true,
                     regex: pattern.regex,
-                    name: typeof pattern.name === 'string' ? pattern.name : ''
+                    action: pattern.predefined === 'address' ? 'map' : 'copy',
+                    parentLevels: pattern.predefined === 'address' ? 5 : 0,
+                    parentRegex: '',
+                    name: pattern.predefined === 'address' ? 'Addresses' : typeof pattern.name === 'string' ? pattern.name : ''
                 })),
             mode: value?.mode === Mode.INCLUDE ? Mode.INCLUDE : Mode.EXCLUDE,
             patterns: [...new Set(patterns.filter(pattern => typeof pattern === 'string')

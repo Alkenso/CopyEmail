@@ -12,6 +12,8 @@ async function load(page, html, protocol = 'http') {
     await page.goto(`${protocol}://copymail.test/`);
     if (fs.existsSync(scriptPath)) {
         await page.addScriptTag({ path: path.join(__dirname, '../extension/settings.js') });
+        await page.addScriptTag({ path: path.join(__dirname, '../extension/parser.js') });
+        await page.addScriptTag({ path: path.join(__dirname, '../extension/geography.js') });
         await page.addScriptTag({ path: scriptPath });
     }
 }
@@ -414,4 +416,28 @@ test('aligns a slotted email to its clipping container inside a web component', 
     const buttonBox = await button.boundingBox();
     expect(buttonBox.x).toBeGreaterThanOrEqual(box.x + box.width);
     expect(buttonBox.x).toBeLessThan(box.x + box.width + 8);
+});
+
+test('ignores delayed hover popups while retaining click-opened popups', async ({ page }) => {
+    await load(page, `
+        <button id="delayed-trigger">Hover for details</button>
+        <div id="delayed-hint" hidden style="position:absolute;top:120px;left:40px;background:white">delayed@example.com</div>
+        <button id="click-trigger" onclick="document.querySelector('#clicked-popup').hidden = false">Open details</button>
+        <div id="clicked-popup" hidden style="position:absolute;top:200px;left:40px;background:white">clicked@example.com</div>
+        <script>
+            let timer;
+            document.querySelector('#delayed-trigger').addEventListener('mouseenter', () => {
+                timer = setTimeout(() => document.querySelector('#delayed-hint').hidden = false, 1800);
+            });
+            document.querySelector('#delayed-trigger').addEventListener('mouseleave', () => clearTimeout(timer));
+        </script>
+    `);
+    await page.locator('#delayed-trigger').hover();
+    await expect(page.locator('#delayed-hint')).toBeVisible();
+    // Wait for a normal marker to prove the scan processed the popup mutation.
+    await page.locator('body').evaluate(node => node.insertAdjacentHTML('beforeend', '<p>marker@example.com</p>'));
+    await expect(copyButton(page, 'marker@example.com')).toBeVisible();
+    await expect(copyButton(page, 'delayed@example.com')).toBeHidden();
+    await page.locator('#click-trigger').click();
+    await expect(copyButton(page, 'clicked@example.com')).toBeVisible();
 });

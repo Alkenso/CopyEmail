@@ -57,8 +57,8 @@ test('parses one pattern per line and rejects URLs or ports instead of silently 
 test('copy patterns default safely, preserve empty lists, and validate regex syntax', () => {
     const settings = settingsModule();
     const defaults = settings.normalize().copyPatterns;
-    expect(defaults.map(pattern => pattern.name)).toEqual(['Email', 'Phone']);
-    expect(defaults.map(pattern => pattern.isOn)).toEqual([true, false]);
+    expect(defaults.map(pattern => pattern.name)).toEqual(['Email', 'Phone', 'Addresses']);
+    expect(defaults.map(pattern => pattern.isOn)).toEqual([true, false, true]);
     expect('Alice@example.com'.match(settings.validateRegex(defaults[0].regex))).toEqual(['Alice@example.com']);
     expect('+1 (212) 555-0123'.match(settings.validateRegex(defaults[1].regex))).toEqual(['+1 (212) 555-0123']);
     expect(settings.normalize({ copyPatterns: [] }).copyPatterns).toHaveLength(0);
@@ -78,4 +78,9 @@ test('ignoring hover hints defaults on and preserves an explicit preference', ()
     const disabled = settings.normalize({ ignoreHoverHints: false });
     expect(disabled.ignoreHoverHints).toBe(false);
     expect(settings.normalize(disabled).ignoreHoverHints).toBe(false);
+});
+
+test('existing non-Unicode custom regexes remain valid', () => {
+    const settings = settingsModule();
+    expect('user@example.com'.match(settings.validateRegex(String.raw`user\@example\.com`))).toEqual(['user@example.com']);
 });
