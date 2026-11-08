@@ -15,7 +15,7 @@ async function load(page, html, settings) {
     if (settings) await page.evaluate(value => {
         window.chrome = { storage: { local: { get: async () => ({ websiteSettings: value }) }, onChanged: { addListener(listener) { window.updateSettings = newValue => listener({ websiteSettings: { newValue } }, 'local'); } } } };
     }, settings);
-    for (const file of ['settings', 'parser', 'geography', 'scanner', 'services', 'content']) {
+    for (const file of ['settings', 'patterns', 'geography', 'scanner', 'services', 'content', 'bootstrap']) {
         await page.addScriptTag({ path: path.join(__dirname, `../extension/${file}.js`) });
     }
     return () => requests;
@@ -59,8 +59,8 @@ test('custom patterns remain simple regex copies even with legacy advanced setti
     await expect(page.getByRole('button', { name: 'Copy ORDER-12', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Copy ITEM-34', exact: true })).toBeVisible();
     expect(await page.evaluate(() => {
-        const pattern = CopyMailParser.compile([{ name: 'Order', isOn: true, regexes: ['ORDER-\\d+'], parentLevels: 0, parentRegex: 'Batch-\\d+' }]);
-        return CopyMailParser.enrich(CopyMailParser.find('ORDER-12', pattern)[0], document.querySelector('p'), node => node.parentElement);
+        const pattern = new CopyMailPatterns.RegexPattern('ORDER-\\d+');
+        return pattern.valueFor(pattern.matches({ text: 'ORDER-12' })[0], { element: document.querySelector('p') });
     })).toBe('ORDER-12');
 });
 

@@ -26,7 +26,7 @@ test('settings uses the new category design and restores saved preferences', asy
     });
     await page.route('http://options.test/**', async route => {
         const filename = new URL(route.request().url()).pathname.slice(1);
-        const types = { 'theme.css': 'text/css', 'options.html': 'text/html', 'options.css': 'text/css', 'options.js': 'text/javascript', 'settings.js': 'text/javascript', 'icons/icon48.png': 'image/png' };
+        const types = { 'patterns.js': 'text/javascript', 'theme.css': 'text/css', 'options.html': 'text/html', 'options.css': 'text/css', 'options.js': 'text/javascript', 'settings.js': 'text/javascript', 'icons/icon48.png': 'image/png' };
         if (!types[filename]) return route.fulfill({ status: 404, body: '' });
         await route.fulfill({ contentType: types[filename], body: await fs.readFile(path.join(__dirname, '../extension', filename)) });
     });

@@ -1,6 +1,7 @@
 const CopyMailScanner = (() => {
     'use strict';
 
+    const { BuiltinRuleType } = CopyMailSettings;
     const SKIPPED = 'script,style,noscript,template,textarea,input,select,option,svg,canvas';
     const METADATA = '[href^="mailto:" i],[title],[aria-label],[data-email]';
 
@@ -11,17 +12,11 @@ const CopyMailScanner = (() => {
         }
     }
 
-    class Finding {
-        constructor(location, value) {
-            this.location = location;
-            this.value = value;
-        }
-    }
-
-    class Detection extends Finding {
+    class Detection {
         constructor(location, rule, value) {
-            super(location, value);
+            this.location = location;
             this.rule = rule;
+            this.value = value;
         }
     }
 
@@ -34,18 +29,19 @@ const CopyMailScanner = (() => {
     }
 
     class Scanner {
-        constructor(settings, options = {}) {
+        constructor(settings, { geography = null } = {}) {
             this.settings = settings;
-            this.options = options;
+            this.geography = geography;
+            this.listeners = new Set();
             this.compiledRules = [];
             this.compiledRevision = null;
-            this.geographyRequested = false;
         }
 
-        scan(root) {
+        // Page-owned exclusions and root observation are per-scan callbacks, not dependencies.
+        scan(root, { isIgnored = () => false, onRoot = () => {} } = {}) {
             this.refreshCompiledRules();
             const detections = [];
-            this.collect(root, detections);
+            this.collect(root, detections, { isIgnored, onRoot });
             return detections;
         }
 
@@ -53,16 +49,15 @@ const CopyMailScanner = (() => {
             if (this.compiledRevision === this.settings.revision) return;
             const rules = this.settings.value?.rules || [];
             this.compiledRules = rules.flatMap(rule => {
-                const possible = new Set(rule.possibleActions || []);
-                const actions = [...new Set(rule.enabledActions || [])].filter(action => possible.has(action));
+                const actions = rule.enabledActions;
                 if (!actions.length || !rule.name?.trim() || !rule.patterns?.length) return [];
                 try {
-                    const alternatives = new CopyMailParser.OrPattern(
-                        rule.patterns.map(source => new CopyMailParser.RegexPattern(source)));
-                    const geography = this.options.geography ||
-                        (typeof CopyMailGeography !== 'undefined' ? CopyMailGeography : null);
-                    const pattern = rule.builtinType === 'address'
-                        ? new CopyMailParser.AddressPattern(alternatives, null, geography)
+                    const alternatives = new CopyMailPatterns.OrPattern(
+                        rule.patterns.map(source => new CopyMailPatterns.RegexPattern(source)));
+                    const pattern = rule.builtinType === BuiltinRuleType.ADDRESS
+                        ? new CopyMailPatterns.AddressPattern(alternatives, null, {
+                            geography: this.geography, onInvalidate: () => this.invalidate()
+                        })
                         : alternatives;
                     return [new CompiledRule(rule, actions, pattern)];
                 } catch {
@@ -72,20 +67,18 @@ const CopyMailScanner = (() => {
             this.compiledRevision = this.settings.revision;
         }
 
-        requestGeographyIfNeeded(pattern) {
-            if (this.geographyRequested || !(pattern instanceof CopyMailParser.AddressPattern)) return;
-            const geography = this.options.geography ||
-                (typeof CopyMailGeography !== 'undefined' ? CopyMailGeography : null);
-            if (!geography?.load) return;
-            this.geographyRequested = true;
-            geography.load().then(() => this.options.onInvalidate?.()).catch(error => {
-                console.warn('CopyEmail could not load city names.', error);
-            });
+        subscribe(listener) {
+            this.listeners.add(listener);
+            return () => this.listeners.delete(listener);
         }
 
-        collect(root, detections, metadataElements = new Set()) {
-            if (root.host) this.options.observeRoot?.(root);
-            this.collectMetadata(root, detections, metadataElements);
+        invalidate() {
+            for (const listener of this.listeners) listener();
+        }
+
+        collect(root, detections, context, metadataElements = new Set()) {
+            if (root.host) context.onRoot(root);
+            this.collectMetadata(root, detections, context, metadataElements);
             let text = '';
             let segments = [];
 
@@ -105,7 +98,7 @@ const CopyMailScanner = (() => {
                     const first = segments.find(segment => segment.end > start);
                     const last = segments.find(segment => segment.end >= end);
                     if (!first || !last) continue;
-                    const range = document.createRange();
+                    const range = (root.ownerDocument || root).createRange();
                     range.setStart(first.node, start - first.start);
                     range.setEnd(last.node, end - last.start);
                     const element = last.node.parentElement || last.node.getRootNode().host;
@@ -117,7 +110,7 @@ const CopyMailScanner = (() => {
             };
 
             const visit = node => {
-                if (this.options.isSpacer?.(node)) return;
+                if (context.isIgnored(node)) return;
                 if (node.nodeType === Node.TEXT_NODE) {
                     segments.push({ node, start: text.length, end: text.length + node.length });
                     text += node.data;
@@ -125,7 +118,7 @@ const CopyMailScanner = (() => {
                 }
                 if (node.nodeType !== Node.ELEMENT_NODE && node !== root) return;
                 if (node.nodeType === Node.ELEMENT_NODE &&
-                    (this.isSkipped(node) || metadataElements.has(node))) {
+                    (this.isSkipped(node, context) || metadataElements.has(node))) {
                     flush();
                     return;
                 }
@@ -134,7 +127,7 @@ const CopyMailScanner = (() => {
                 if (boundary) flush();
                 if (node.shadowRoot) {
                     flush();
-                    this.collect(node.shadowRoot, detections, metadataElements);
+                    this.collect(node.shadowRoot, detections, context, metadataElements);
                 } else {
                     const assigned = node.nodeName === 'SLOT' ? node.assignedNodes({ flatten: true }) : [];
                     for (const child of assigned.length ? assigned : node.childNodes) visit(child);
@@ -145,9 +138,9 @@ const CopyMailScanner = (() => {
             flush();
         }
 
-        collectMetadata(root, detections, metadataElements) {
+        collectMetadata(root, detections, context, metadataElements) {
             for (const element of root.querySelectorAll(METADATA)) {
-                if (this.isSkipped(element) || element.closest(SKIPPED) || element.isContentEditable) continue;
+                if (this.isSkipped(element, context) || element.closest(SKIPPED) || element.isContentEditable) continue;
                 const match = this.metadataFinding(element);
                 if (!match) continue;
                 const rawValue = match.finding.value;
@@ -155,9 +148,9 @@ const CopyMailScanner = (() => {
                 if (!this.shortenedLabelMatches(label, rawValue)) continue;
                 if ([...element.querySelectorAll(METADATA)]
                     .some(child => this.shortenedLabelMatches(child.textContent.trim(), rawValue))) continue;
-                const range = document.createRange();
+                const range = (root.ownerDocument || root).createRange();
                 range.selectNodeContents(element);
-                if (this.options.isSpacer?.(element.lastChild)) range.setEndBefore(element.lastChild);
+                if (context.isIgnored(element.lastChild)) range.setEndBefore(element.lastChild);
                 const value = this.findingValue(match.compiled, match.finding, element);
                 detections.push(new Detection(new Location(element, range), match.compiled.rule, value));
                 metadataElements.add(element);
@@ -196,9 +189,7 @@ const CopyMailScanner = (() => {
         }
 
         findingValue(compiled, finding, element) {
-            if (!(compiled.pattern instanceof CopyMailParser.AddressPattern)) return finding.value;
-            this.requestGeographyIfNeeded(compiled.pattern);
-            return compiled.pattern.enrich(finding, element, this.parentElement.bind(this));
+            return compiled.pattern.valueFor(finding, { element, parentElement: this.parentElement });
         }
 
         shortenedLabelMatches(label, value) {
@@ -210,20 +201,14 @@ const CopyMailScanner = (() => {
         }
 
         parentElement(element) {
-            return this.options.parentElement?.(element) ||
-                element.assignedSlot || element.parentElement || element.getRootNode().host || null;
+            return element.assignedSlot || element.parentElement || element.getRootNode().host || null;
         }
 
-        isSkipped(element) {
-            return this.options.isSkipped?.(element) ??
-                (element.matches(SKIPPED) || element.isContentEditable);
+        isSkipped(element, context) {
+            return context.isIgnored(element) || element.matches(SKIPPED) || element.isContentEditable;
         }
     }
 
-    return Object.freeze({ Scanner, Location, Finding, Detection, CompiledRule,
-        Pattern: CopyMailParser.Pattern,
-        RegexPattern: CopyMailParser.RegexPattern,
-        OrPattern: CopyMailParser.OrPattern,
-        AddressPattern: CopyMailParser.AddressPattern });
+    return Object.freeze({ Scanner, Location, Detection, CompiledRule });
 })();
 

@@ -3,10 +3,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function settingsModule(chrome) {
+function settingsModule(chrome, logger = { warn() {} }) {
     const filename = path.join(__dirname, '../extension/settings.js');
     const source = fs.readFileSync(filename, 'utf8');
-    return vm.runInNewContext(`${source}\n({ Action, BuiltinRuleType, Settings, CopyMailSettings })`, { chrome });
+    return vm.runInNewContext(`${source}\n({ ...CopyMailSettings, CopyMailSettings })`, { chrome, console: logger });
 }
 
 function storage(initialValue) {
@@ -53,6 +53,9 @@ test('normalizes rules and limits enabled actions to their supported actions', (
     expect(Array.from(value.rules[1].possibleActions)).toEqual([Action.COPY]);
     expect(Array.from(value.rules[1].enabledActions)).toEqual([Action.COPY]);
     expect(Array.from(value.rules[1].patterns)).toEqual(['ORDER-\\d+']);
+    expect(Object.isFrozen(value)).toBe(false);
+    value.rules[1].enabledActions.length = 0;
+    expect(value.rules[1].enabledActions).toEqual([]);
 });
 
 test('loads legacy settings once, persists stable rule IDs, and notifies only for changes', async () => {
@@ -79,6 +82,40 @@ test('loads legacy settings once, persists stable rule IDs, and notifies only fo
     expect(mock.writes).toHaveLength(1);
     settings.dispose();
     reloaded.dispose();
+});
+
+test('listener failures do not interrupt later subscribers or legacy persistence', async () => {
+    const mock = storage({ copyPatterns: [
+        { predefined: 'email', isOn: true, regexes: ['legacy'], name: 'Email' }
+    ] });
+    const warnings = [];
+    const logger = { warn(...arguments_) { warnings.push(arguments_); } };
+    const { Settings } = settingsModule(mock.chrome, logger);
+    const settings = new Settings();
+    const revisions = [];
+    settings.subscribe(() => { throw new Error('Rendering failed'); });
+    settings.subscribe((value, revision) => revisions.push([value.rules.length, revision]));
+
+    await settings.load();
+
+    expect(revisions).toEqual([[2, 1]]);
+    expect(mock.writes).toHaveLength(1);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0][0]).toMatch(/subscriber/i);
+    expect(warnings[0][1]).toBeInstanceOf(Error);
+});
+
+test('legacy rule IDs stay attached after invalid entries are filtered', () => {
+    const id = '39bcb03c-6e2e-4cb6-a38f-bd4372b8b2ce';
+    const { CopyMailSettings } = settingsModule();
+
+    const value = CopyMailSettings.normalize({ copyPatterns: [
+        null,
+        { id, predefined: null, isOn: true, regexes: ['ORDER-\\d+'], name: 'Order' }
+    ] });
+
+    expect(value.rules).toHaveLength(1);
+    expect(value.rules[0].id).toBe(id);
 });
 
 test('legacy maps preference retains address links when the copy rule is absent', async () => {
@@ -170,4 +207,32 @@ test('appearance defaults to system and persists supported choices', async () =>
         expect(settings.value.appearance).toBe(appearance);
         expect(writes.at(-1).websiteSettings.appearance).toBe(appearance);
     }
+});
+
+test('published settings snapshots cannot be mutated without a revision', () => {
+    const { Settings } = settingsModule();
+    const settings = new Settings();
+    const value = settings.value;
+    const revision = settings.revision;
+
+    expect(Object.isFrozen(value)).toBe(true);
+    expect(Object.isFrozen(value.rules)).toBe(true);
+    expect(Object.isFrozen(value.rules[0])).toBe(true);
+    expect(Object.isFrozen(value.rules[0].enabledActions)).toBe(true);
+    expect(() => value.rules.push({})).toThrow();
+    expect(() => value.rules[0].patterns.push('changed')).toThrow();
+    expect(() => { settings.value = { rules: [] }; }).toThrow();
+    expect(() => { settings.revision = 99; }).toThrow();
+
+    expect(settings.value).toBe(value);
+    expect(settings.revision).toBe(revision);
+});
+
+test('instance website enablement uses the current immutable snapshot', () => {
+    const { Settings } = settingsModule();
+    const settings = new Settings();
+    settings.update({ mode: 'nowhere-but', patterns: ['*.example.com'] });
+
+    expect(settings.isEnabled('mail.example.com')).toBe(true);
+    expect(settings.isEnabled('other.test')).toBe(false);
 });

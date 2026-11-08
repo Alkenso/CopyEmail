@@ -1,5 +1,6 @@
 (() => {
     'use strict';
+    const { Settings, Action, BuiltinRuleType } = CopyMailSettings;
     const settings = new Settings();
     const form = document.querySelector('#settings-form');
     const fields = document.querySelector('#settings-fields');
@@ -166,7 +167,7 @@
         if (!ruleName.value.trim()) error = 'Category name is required.';
         else if (!sources.length) error = 'At least one regex is required.';
         else for (let index = 0; index < sources.length; index++) {
-            try { CopyMailSettings.validateRegex(sources[index]); }
+            try { CopyMailPatterns.validateRegex(sources[index]); }
             catch (failure) { error = `Line ${index + 1}: ${failure.message}`; break; }
         }
         ruleError.textContent = error;

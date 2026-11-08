@@ -1,5 +1,6 @@
 (() => {
     'use strict';
+    const { Settings, Action, BuiltinRuleType } = CopyMailSettings;
     const settings = new Settings();
     const rulesElement = document.querySelector('#rules');
     const addCategory = document.querySelector('#add-category');

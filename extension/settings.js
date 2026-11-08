@@ -1,11 +1,9 @@
-const Action = Object.freeze({ COPY: 'copy', OPEN_LINK: 'openLink' });
-const Appearance = Object.freeze({ SYSTEM: 'system', LIGHT: 'light', DARK: 'dark' });
-const BuiltinRuleType = Object.freeze({ EMAIL: 'email', PHONE: 'phone', ADDRESS: 'address' });
-let Settings;
-
 const CopyMailSettings = (() => {
     'use strict';
 
+    const Action = Object.freeze({ COPY: 'copy', OPEN_LINK: 'openLink' });
+    const Appearance = Object.freeze({ SYSTEM: 'system', LIGHT: 'light', DARK: 'dark' });
+    const BuiltinRuleType = Object.freeze({ EMAIL: 'email', PHONE: 'phone', ADDRESS: 'address' });
     const Mode = Object.freeze({ EXCLUDE: 'everywhere-except', INCLUDE: 'nowhere-but' });
     const STORAGE_KEY = 'websiteSettings';
 
@@ -46,13 +44,6 @@ const CopyMailSettings = (() => {
         { predefined: 'address', isOn: true, regexes: ADDRESS_REGEXES, name: 'Addresses' }
     ];
 
-    function validateRegex(source) {
-        if (!source.trim()) {
-            throw new Error('Regex is required.');
-        }
-        return new RegExp(source, /\\[pP]\{/.test(source) ? 'giu' : 'gi');
-    }
-
     const BUILTIN_IDS = Object.freeze({
         [BuiltinRuleType.EMAIL]: '00000000-0000-4000-8000-000000000001',
         [BuiltinRuleType.PHONE]: '00000000-0000-4000-8000-000000000002',
@@ -70,9 +61,6 @@ const CopyMailSettings = (() => {
         return {
             appearance: Object.values(Appearance).includes(value?.appearance) ? value.appearance : Appearance.SYSTEM,
             ignoreHoverHints: value?.ignoreHoverHints !== false,
-            googleMapsLinks: rules.some(rule => rule.builtinType === BuiltinRuleType.ADDRESS &&
-                rule.enabledActions.includes(Action.OPEN_LINK)),
-            copyPatterns: rules.map(toLegacyRule),
             mode: value?.mode === Mode.INCLUDE ? Mode.INCLUDE : Mode.EXCLUDE,
             patterns: [...new Set(websitePatterns.filter(pattern => typeof pattern === 'string')
                 .map(pattern => pattern.trim().toLowerCase()).filter(Boolean))],
@@ -104,8 +92,9 @@ const CopyMailSettings = (() => {
             !legacyRules.some(pattern => pattern?.predefined === BuiltinRuleType.ADDRESS)) {
             legacyRules.push(DEFAULT_PATTERNS.find(pattern => pattern.predefined === BuiltinRuleType.ADDRESS));
         }
-        return legacyRules
-            .filter(rule => rule && (Array.isArray(rule.regexes) || typeof rule.regex === 'string'))
+        const migratableRules = legacyRules
+            .filter(rule => rule && (Array.isArray(rule.regexes) || typeof rule.regex === 'string'));
+        return migratableRules
             .map(normalizeLegacyRule)
             .map((rule, index) => {
                 const builtinType = Object.values(BuiltinRuleType).includes(rule.predefined) ? rule.predefined : null;
@@ -114,7 +103,7 @@ const CopyMailSettings = (() => {
                     enabledActions.push(Action.OPEN_LINK);
                 }
                 return normalizeModernRule({
-                    id: legacyRules[index]?.id,
+                    id: migratableRules[index]?.id,
                     name: rule.name,
                     builtinType,
                     enabledActions,
@@ -123,7 +112,9 @@ const CopyMailSettings = (() => {
             });
     }
 
-    function preserveLegacyAddressLinks(value) {
+    // This compatibility repair intentionally applies only to values read from storage. Direct
+    // normalize/save/storage-event paths retain their existing modern and legacy semantics.
+    function migrateStoredLegacyAddressLinkPreference(value) {
         if (!value || Array.isArray(value.rules) || !Array.isArray(value.copyPatterns) ||
             value.googleMapsLinks === false || value.copyPatterns.some(rule => rule?.predefined === BuiltinRuleType.ADDRESS)) {
             return value;
@@ -134,16 +125,6 @@ const CopyMailSettings = (() => {
                 ...DEFAULT_PATTERNS.find(rule => rule.predefined === BuiltinRuleType.ADDRESS),
                 isOn: false
             }]
-        };
-    }
-
-    function storedValue(value) {
-        return {
-            appearance: value.appearance,
-            ignoreHoverHints: value.ignoreHoverHints,
-            mode: value.mode,
-            patterns: value.patterns,
-            rules: value.rules
         };
     }
 
@@ -180,19 +161,6 @@ const CopyMailSettings = (() => {
         }
         const hex = hashes.map(hash => hash.toString(16).padStart(8, '0')).join('');
         return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20)}`;
-    }
-
-    /** @returns {LegacyRule} */
-    function toLegacyRule(rule) {
-        return {
-            predefined: rule.builtinType,
-            isOn: rule.enabledActions.includes(Action.COPY),
-            regexes: [...rule.patterns],
-            action: rule.builtinType === BuiltinRuleType.ADDRESS ? 'map' : 'copy',
-            parentLevels: rule.builtinType === BuiltinRuleType.ADDRESS ? 5 : 0,
-            parentRegex: '',
-            name: rule.name
-        };
     }
 
     function parsePatterns(text) {
@@ -241,16 +209,22 @@ const CopyMailSettings = (() => {
         return settings.mode === Mode.INCLUDE ? matched : !matched;
     }
 
-    Settings = class Settings {
+    function deepFreeze(value) {
+        if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+        for (const child of Object.values(value)) deepFreeze(child);
+        return Object.freeze(value);
+    }
+
+    class Settings {
         #listeners = new Set();
         #storage;
         #storageChanges;
         #storageListener;
+        #value = deepFreeze(normalize());
+        #revision = 0;
 
         constructor(storage = globalThis.chrome?.storage?.local,
             storageChanges = globalThis.chrome?.storage?.onChanged) {
-            this.value = normalize();
-            this.revision = 0;
             this.#storage = storage;
             this.#storageChanges = storageChanges;
             this.#storageListener = (changes, area) => {
@@ -261,19 +235,27 @@ const CopyMailSettings = (() => {
             this.#storageChanges?.addListener?.(this.#storageListener);
         }
 
+        get value() {
+            return this.#value;
+        }
+
+        get revision() {
+            return this.#revision;
+        }
+
         async load() {
             if (!this.#storage?.get) return this.value;
             const revisionBeforeLoad = this.revision;
             const stored = await this.#storage.get(STORAGE_KEY);
             if (this.revision !== revisionBeforeLoad) return this.value;
             const rawValue = stored?.[STORAGE_KEY];
-            const normalized = normalize(preserveLegacyAddressLinks(rawValue));
-            const persisted = storedValue(normalized);
+            const normalized = normalize(migrateStoredLegacyAddressLinkPreference(rawValue));
             this.update(normalized);
-            if (JSON.stringify(storedValue(this.value)) !== JSON.stringify(persisted)) return this.value;
-            if (rawValue !== undefined && this.#storage.set && JSON.stringify(rawValue) !== JSON.stringify(persisted)) {
+            // A subscriber may update settings reentrantly; never persist the older loaded value.
+            if (JSON.stringify(this.value) !== JSON.stringify(normalized)) return this.value;
+            if (rawValue !== undefined && this.#storage.set && JSON.stringify(rawValue) !== JSON.stringify(normalized)) {
                 try {
-                    await this.#storage.set({ [STORAGE_KEY]: persisted });
+                    await this.#storage.set({ [STORAGE_KEY]: normalized });
                 } catch (error) {
                     // Loaded preferences remain usable; retry migration on the next load.
                     console.warn('CopyEmail could not persist migrated settings.', error);
@@ -286,7 +268,7 @@ const CopyMailSettings = (() => {
             const revisionBeforeSave = this.revision;
             const normalized = normalize(value);
             if (this.#storage?.set) {
-                await this.#storage.set({ [STORAGE_KEY]: storedValue(normalized) });
+                await this.#storage.set({ [STORAGE_KEY]: normalized });
             }
             if (this.revision === revisionBeforeSave) this.update(normalized);
             return this.value;
@@ -294,11 +276,21 @@ const CopyMailSettings = (() => {
 
         update(value) {
             const normalized = normalize(value);
-            if (JSON.stringify(normalized) === JSON.stringify(this.value)) return false;
-            this.value = normalized;
-            this.revision++;
-            for (const listener of this.#listeners) listener(this.value, this.revision);
+            if (JSON.stringify(normalized) === JSON.stringify(this.#value)) return false;
+            this.#value = deepFreeze(normalized);
+            this.#revision++;
+            for (const listener of this.#listeners) {
+                try {
+                    listener(this.#value, this.#revision);
+                } catch (error) {
+                    console.warn('CopyEmail settings subscriber failed.', error);
+                }
+            }
             return true;
+        }
+
+        isEnabled(hostname) {
+            return isEnabled(this.#value, hostname);
         }
 
         subscribe(listener) {
@@ -310,8 +302,8 @@ const CopyMailSettings = (() => {
             this.#storageChanges?.removeListener?.(this.#storageListener);
             this.#listeners.clear();
         }
-    };
+    }
 
     return Object.freeze({ Action, Appearance, BuiltinRuleType, Mode, STORAGE_KEY, Settings, normalize,
-        validateRegex, parsePatterns, matches, isEnabled });
+        parsePatterns, matches, isEnabled });
 })();

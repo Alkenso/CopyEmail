@@ -54,17 +54,14 @@ test('parses one pattern per line and rejects URLs or ports instead of silently 
     }
 });
 
-test('copy patterns default safely, preserve empty lists, and validate regex syntax', () => {
+test('rules default safely and preserve explicitly empty legacy lists', () => {
     const settings = settingsModule();
-    const defaults = settings.normalize().copyPatterns;
-    expect(defaults.map(pattern => pattern.name)).toEqual(['Email', 'Phone', 'Addresses']);
-    expect(defaults.map(pattern => pattern.isOn)).toEqual([true, false, true]);
-    expect('Alice@example.com'.match(settings.validateRegex(defaults[0].regexes[0]))).toEqual(['Alice@example.com']);
-    expect('+1 (212) 555-0123'.match(settings.validateRegex(defaults[1].regexes[0]))).toEqual(['+1 (212) 555-0123']);
-    expect(settings.normalize({ copyPatterns: [] }).copyPatterns).toHaveLength(0);
-    expect(() => settings.validateRegex('[')).toThrow();
-    expect(() => settings.validateRegex(' ')).toThrow(/required/);
-    expect('ORDER-123'.match(settings.validateRegex('order-[0-9]+'))).toEqual(['ORDER-123']);
+    const defaults = settings.normalize().rules;
+    expect(defaults.map(rule => rule.name)).toEqual(['Email', 'Phone', 'Addresses']);
+    expect(defaults.map(rule => rule.enabledActions)).toEqual([
+        ['copy'], [], ['copy', 'openLink']
+    ]);
+    expect(settings.normalize({ copyPatterns: [] }).rules).toHaveLength(0);
 });
 
 test('ignoring hover hints defaults on and preserves an explicit preference', () => {
@@ -78,9 +75,4 @@ test('ignoring hover hints defaults on and preserves an explicit preference', ()
     const disabled = settings.normalize({ ignoreHoverHints: false });
     expect(disabled.ignoreHoverHints).toBe(false);
     expect(settings.normalize(disabled).ignoreHoverHints).toBe(false);
-});
-
-test('existing non-Unicode custom regexes remain valid', () => {
-    const settings = settingsModule();
-    expect('user@example.com'.match(settings.validateRegex(String.raw`user\@example\.com`))).toEqual(['user@example.com']);
 });

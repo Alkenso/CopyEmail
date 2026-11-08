@@ -1,15 +1,9 @@
-const CopyMailParser = (() => {
+const CopyMailPatterns = (() => {
     'use strict';
 
-    const Action = Object.freeze({ COPY: 'copy', MAP: 'map' });
-
-    /** A match keeps its DOM offsets separate from the enriched action value. */
-    class Match {
-        constructor(text, index, pattern) {
-            this.text = text;
-            this.index = index;
-            this.pattern = pattern;
-        }
+    function validateRegex(source) {
+        if (!source.trim()) throw new Error('Regex is required.');
+        return new RegExp(source, /\\[pP]\{/.test(source) ? 'giu' : 'gi');
     }
 
     /** A pattern finding uses offsets in Scanner-prepared text. */
@@ -25,13 +19,22 @@ const CopyMailParser = (() => {
         matches() {
             throw new Error('Pattern.matches must be implemented.');
         }
+
+        starts(text) {
+            return this.matches({ text }).some(finding => finding.index === 0);
+        }
+
+        // Resolve context only after Scanner has accepted a match and located it.
+        valueFor(finding, context) {
+            return finding.value;
+        }
     }
 
     class RegexPattern extends Pattern {
         constructor(source) {
             super();
             this.source = source;
-            this.expression = CopyMailSettings.validateRegex(source);
+            this.expression = validateRegex(source);
         }
 
         matches(input) {
@@ -66,17 +69,21 @@ const CopyMailParser = (() => {
         }
 
         starts(text) {
-            return this.patterns.some(pattern => pattern.starts?.(text));
+            return this.patterns.some(pattern => pattern.starts(text));
         }
     }
 
     class AddressPattern extends Pattern {
-        constructor(address, parent = null, geography = null) {
+        #geography;
+        #onInvalidate;
+        #loadingRequested = false;
+
+        constructor(address, parent = null, { geography = null, onInvalidate = () => {} } = {}) {
             super();
             this.address = address;
             this.parent = parent;
-            this.geography = geography;
-            this.parentLevels = 5;
+            this.#geography = geography;
+            this.#onInvalidate = onInvalidate;
         }
 
         matches(input) {
@@ -91,7 +98,7 @@ const CopyMailParser = (() => {
             };
             for (const comma of input.text.matchAll(/,[ \t]*/g)) {
                 const next = comma.index + comma[0].length;
-                if (this.address.starts?.(input.text.slice(next))) {
+                if (this.address.starts(input.text.slice(next))) {
                     collect(comma.index);
                     offset = next;
                 }
@@ -100,19 +107,20 @@ const CopyMailParser = (() => {
             return findings.sort((left, right) => left.index - right.index);
         }
 
-        enrich(finding, element, parentElement) {
+        valueFor(finding, { element, parentElement }) {
+            this.#requestGeography();
             const values = [finding.value];
-            const contexts = contextLines(element, this.parentLevels, parentElement);
-            if (this.geography) {
-                const local = this.geography.find(finding.text);
+            const contexts = contextLines(element, 5, parentElement);
+            if (this.#geography) {
+                const local = this.#geography.find(finding.text);
                 let parentCity = '';
                 for (const context of contexts) {
-                    const found = this.geography.find(context);
+                    const found = this.#geography.find(context);
                     parentCity ||= found.city;
                     local.country ||= found.country;
                 }
                 for (const value of [parentCity || local.city, local.country]) {
-                    if (value && !this.geography.contains(finding.text, value)) values.push(value);
+                    if (value && !this.#geography.contains(finding.text, value)) values.push(value);
                 }
             }
             if (this.parent) {
@@ -126,34 +134,14 @@ const CopyMailParser = (() => {
             }
             return [...new Set(values)].join(', ');
         }
-    }
 
-    function compile(patterns) {
-        return patterns.filter(pattern => pattern.isOn && typeof pattern.name === 'string' && pattern.name.trim()).flatMap(pattern => {
-            try {
-                const alternatives = new OrPattern(pattern.regexes.map(source => new RegexPattern(source)));
-                const parentPattern = pattern.parentRegex ? new RegexPattern(pattern.parentRegex) : null;
-                return [{ ...pattern,
-                    runtimePattern: pattern.action === Action.MAP ? new AddressPattern(alternatives) : alternatives,
-                    parentPattern,
-                    parentExpression: parentPattern?.expression || null }];
-            } catch {
-                return [];
-            }
-        });
-    }
-
-    function find(text, patterns) {
-        const accepted = [];
-        for (const pattern of patterns) {
-            for (const finding of pattern.runtimePattern.matches({ text })) {
-                if (!accepted.some(other => finding.index < other.index + other.text.length &&
-                    other.index < finding.index + finding.text.length)) {
-                    accepted.push(new Match(finding.text, finding.index, pattern));
-                }
-            }
+        #requestGeography() {
+            if (this.#loadingRequested || !this.#geography?.load) return;
+            this.#loadingRequested = true;
+            this.#geography.load().then(() => this.#onInvalidate()).catch(error => {
+                console.warn('CopyEmail could not load city names.', error);
+            });
         }
-        return accepted.sort((a, b) => a.index - b.index);
     }
 
     // Inspect each ancestor's context without reading the branch containing the match.
@@ -163,7 +151,7 @@ const CopyMailParser = (() => {
         let branch = element;
         for (let level = 0; level < levels; level++) {
             const parent = parentElement(branch);
-            if (!parent || parent === document.documentElement) {
+            if (!parent || parent === parent.ownerDocument.documentElement) {
                 break;
             }
             const lines = [];
@@ -172,7 +160,7 @@ const CopyMailParser = (() => {
                 if (node.nodeType === Node.TEXT_NODE) {
                     lines.push(node.data);
                 } else if (node.nodeType === Node.ELEMENT_NODE &&
-                    !node.matches('script,style,noscript,template,input,textarea,select,svg,canvas,li,ul,ol,article,section,main,nav,footer,copymail-overlay') &&
+                    !node.matches('script,style,noscript,template,input,textarea,select,svg,canvas,li,ul,ol,article,section,main,nav,footer') &&
                     !node.isContentEditable && node.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) {
                     // Compact labels may contain inline markup; large subtrees are not labels.
                     if (node.textContent.length <= 160 && !node.querySelector('p,li,ul,ol,article,section,main,[hidden]')) {
@@ -187,15 +175,5 @@ const CopyMailParser = (() => {
         return result;
     }
 
-    function enrich(match, element, parentElement, geography) {
-        const pattern = match.pattern;
-        if (!pattern.parentLevels || !(pattern.runtimePattern instanceof AddressPattern)) return match.text.trim();
-        const adapter = new AddressPattern(pattern.runtimePattern.address, pattern.parentPattern,
-            pattern.action === Action.MAP ? geography : null);
-        adapter.parentLevels = pattern.parentLevels;
-        return adapter.enrich(new PatternFinding(match.text, match.index), element, parentElement);
-    }
-
-    return Object.freeze({ Action, Pattern, PatternFinding, RegexPattern, OrPattern, AddressPattern,
-        compile, find, enrich, contextLines });
+    return Object.freeze({ Pattern, PatternFinding, RegexPattern, OrPattern, AddressPattern, validateRegex });
 })();

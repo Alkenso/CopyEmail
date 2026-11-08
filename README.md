@@ -82,4 +82,33 @@ See `extension/data/README.md` for attribution, licensing and regeneration.
 
 ## Architecture
 
-`Settings` owns persisted rules and revisions. `Scanner` traverses the page and composes regex, OR, and address patterns into detections with DOM ranges and full values. `ServiceCollection` prepares copy values or Google Maps URLs without executing them. `PageAugmenter` owns observation, page modifications, layout, and action execution. The popup and settings page share the Settings model.
+The content-script composition root is [`bootstrap.js`](extension/bootstrap.js). It creates
+`Settings`, injects it and the geography provider into `Scanner`, then passes settings,
+scanner, and services to `PageAugmenter`. The manifest loads these plain scripts in
+dependency order; no module loader or build step is required.
+
+| Component | Responsibility | Dependencies |
+| --- | --- | --- |
+| [`Settings`](extension/settings.js) | Normalize and migrate preferences, persist changes, publish immutable snapshots and revisions | Storage and storage-change events |
+| [`Scanner`](extension/scanner.js) | Traverse text and metadata, compile enabled rules when the settings revision changes, return detections with DOM ranges | Settings, pattern classes, injected geography provider |
+| [`Pattern`](extension/patterns.js) | Match text; resolve the full value after the scanner locates an accepted match | Regex/OR composition; AddressPattern optionally uses geography and a parent pattern |
+| [`ServiceCollection`](extension/services.js) | Convert a detection into Copy or Google Maps commands without executing them | Action and builtin-rule types |
+| [`PageAugmenter`](extension/content.js) | Observe the page, render and position controls, execute clipboard actions, and manage DOM changes | Settings, Scanner, ServiceCollection |
+
+Rules contain `id`, `name`, `possibleActions`, `enabledActions`, `builtinType`, and
+`patterns`. A compiled rule keeps the rule, its nonempty enabled-action list, and
+its composed pattern. A detection contains `{ location: { element, range }, rule, value }`;
+a command contains `{ action, value }`. Legacy preferences are accepted only at the
+settings boundary; runtime consumers use the modern rule model.
+
+Patterns return text offsets from `matches({ text })`. Their `valueFor(finding, context)`
+step resolves the final value once Scanner knows its DOM location. AddressPattern owns
+parent-context lookup and lazy geography loading, independent of enabled actions.
+Scanner publishes invalidation when asynchronous context becomes available. Its
+per-scan callbacks exclude page-owned controls and report shadow roots; PageAugmenter
+owns their observation. Scanner and patterns never modify the page.
+
+`PageAugmenter.start()` loads settings and starts subscriptions and page listeners.
+`dispose()` releases its subscriptions, listeners, observers, timers, controls, and
+spacers. Injected dependencies remain owned by the caller. Popup and options views
+use the same Settings model, with mutable editing drafts separate from its snapshots.

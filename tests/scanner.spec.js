@@ -4,7 +4,7 @@ const path = require('node:path');
 
 async function loadScanner(page, html) {
     await page.setContent(`<main>${html}</main>`);
-    for (const file of ['settings', 'parser', 'scanner']) {
+    for (const file of ['settings', 'patterns', 'scanner']) {
         await page.addScriptTag({ path: path.join(__dirname, `../extension/${file}.js`) });
     }
 }
@@ -115,3 +115,69 @@ test('metadata abbreviation is validated before address context is appended', as
     expect(result).toEqual(['Aleja Rzeczypospolitej 18, Warsaw']);
 });
 
+test('address context loads on demand and scanner invalidation can be unsubscribed', async ({ page }) => {
+    await loadScanner(page, '<section><h2>Warsaw</h2><p>No address yet</p></section>');
+    const result = await page.evaluate(async () => {
+        let resolveLoad;
+        const ready = new Promise(resolve => { resolveLoad = resolve; });
+        let loads = 0;
+        let loaded = false;
+        const geography = {
+            load() { loads++; return ready.then(() => { loaded = true; }); },
+            find(value) { return { city: loaded && value.includes('Warsaw') ? 'Warsaw' : '', country: '' }; },
+            contains(value, part) { return value.includes(part); }
+        };
+        const rule = { id: 'address', name: 'Address', builtinType: 'address',
+            possibleActions: ['copy', 'openLink'], enabledActions: ['copy'], patterns: ['10 Main Street'] };
+        const scanner = new CopyMailScanner.Scanner({ revision: 1, value: { rules: [rule] } }, { geography });
+        const root = document.querySelector('main');
+        scanner.scan(root);
+        const loadsBeforeDetection = loads;
+        document.querySelector('p').textContent = '10 Main Street';
+        const initial = scanner.scan(root)[0].value;
+        scanner.scan(root);
+        let calls = 0;
+        let removedCalls = 0;
+        scanner.subscribe(() => { calls++; });
+        const unsubscribe = scanner.subscribe(() => { removedCalls++; });
+        unsubscribe();
+        resolveLoad();
+        await ready;
+        await Promise.resolve();
+        return { loadsBeforeDetection, loads, initial, calls, removedCalls, enriched: scanner.scan(root)[0].value };
+    });
+    expect(result).toEqual({ loadsBeforeDetection: 0, loads: 1, initial: '10 Main Street',
+        calls: 1, removedCalls: 0, enriched: '10 Main Street, Warsaw' });
+});
+
+test('scan hooks are scoped to each scan and report shadow roots', async ({ page }) => {
+    await loadScanner(page, '<p>ORDER-1</p><div id="shadow"></div>');
+    const result = await page.evaluate(() => {
+        const shadow = document.querySelector('#shadow').attachShadow({ mode: 'open' });
+        shadow.innerHTML = '<p>ORDER-2</p>';
+        const rule = { id: 'order', name: 'Order', builtinType: null,
+            possibleActions: ['copy'], enabledActions: ['copy'], patterns: ['ORDER-\\d+'] };
+        const scanner = new CopyMailScanner.Scanner({ revision: 1, value: { rules: [rule] } });
+        const root = document.querySelector('main');
+        const roots = [];
+        const first = scanner.scan(root, {
+            isIgnored: node => node === document.querySelector('p'),
+            onRoot: root => roots.push(root)
+        }).map(detection => detection.value);
+        return { first, second: scanner.scan(root).map(detection => detection.value),
+            reportedShadow: roots.length === 1 && roots[0] === shadow };
+    });
+    expect(result).toEqual({ first: ['ORDER-2'], second: ['ORDER-1', 'ORDER-2'], reportedShadow: true });
+});
+
+test('address patterns use the nearest matching parent pattern', async ({ page }) => {
+    await loadScanner(page, '<section><h2>Region: North</h2><div><h3>Region: Central</h3><p>10 Main Street</p></div></section>');
+    const value = await page.evaluate(() => {
+        const pattern = new CopyMailPatterns.AddressPattern(
+            new CopyMailPatterns.RegexPattern('10 Main Street'),
+            new CopyMailPatterns.RegexPattern('Region: \\w+'));
+        const finding = pattern.matches({ text: '10 Main Street' })[0];
+        return pattern.valueFor(finding, { element: document.querySelector('p'), parentElement: element => element.parentElement });
+    });
+    expect(value).toBe('10 Main Street, Region: Central');
+});
