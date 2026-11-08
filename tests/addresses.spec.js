@@ -15,7 +15,7 @@ async function load(page, html, settings) {
     if (settings) await page.evaluate(value => {
         window.chrome = { storage: { local: { get: async () => ({ websiteSettings: value }) }, onChanged: { addListener(listener) { window.updateSettings = newValue => listener({ websiteSettings: { newValue } }, 'local'); } } } };
     }, settings);
-    for (const file of ['settings', 'parser', 'geography', 'content']) {
+    for (const file of ['settings', 'parser', 'geography', 'scanner', 'services', 'content']) {
         await page.addScriptTag({ path: path.join(__dirname, `../extension/${file}.js`) });
     }
     return () => requests;
@@ -129,7 +129,9 @@ test('address copy and globe preferences work independently and update live', as
     for (const [copyEnabled, mapsEnabled] of [[false, true], [false, false], [true, false], [true, true]]) {
         await page.evaluate(({ copyEnabled, mapsEnabled }) => {
             const settings = CopyMailSettings.normalize({ googleMapsLinks: mapsEnabled });
-            settings.copyPatterns.find(pattern => pattern.predefined === 'address').isOn = copyEnabled;
+            settings.rules.find(rule => rule.builtinType === 'address').enabledActions = [
+                ...(copyEnabled ? ['copy'] : []), ...(mapsEnabled ? ['openLink'] : [])
+            ];
             window.updateSettings(settings);
         }, { copyEnabled, mapsEnabled });
         if (copyEnabled) await expect(copy).toBeVisible();

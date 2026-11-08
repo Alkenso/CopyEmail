@@ -23,7 +23,7 @@ No build step is required. After updating the extension files, reload CopyEmail 
 
 ## Website settings
 
-Open CopyEmail's **Options** from Chrome's extensions menu.
+Click CopyEmail’s toolbar icon to view categories and toggle their actions. Changes apply immediately. Open the gear button for full settings and custom-rule editing.
 
 - **All sites except…** — enabled everywhere except websites in the list.
 - **Only these sites** — enabled only on websites in the list.
@@ -35,11 +35,13 @@ Enter one hostname pattern per line, without `https://`, paths, or ports. Matchi
 
 For example, `example.com` matches that website, while `*.example.com` matches its subdomains. Add both to cover both. Click **Save settings** to apply changes immediately to open tabs.
 
-The third tab, **Settings**, includes **Ignore hover hints**. It is enabled by default and skips copy icons in detected tooltips and temporary hints shown on hover. Change it and click **Save Settings** to apply your preference.
+The settings page includes **Ignore hover hints**. It is enabled by default and skips copy icons in detected tooltips and temporary hints shown on hover. Change it and click **Save Settings** to apply your preference.
+
+The **General** settings include **Appearance**: System (default), Light, or Dark. System follows your device’s color scheme. Changes preview immediately; click **Save settings** to apply the preference to the popup and other open settings views.
 
 ## Privacy and limits
 
-Recognition runs locally, with no analytics or remote lookup requests. Clicking a globe link opens Google Maps with the detected address. Only website settings are stored. CopyEmail writes to the clipboard when you click a copy icon; it never reads the clipboard or stores email addresses.
+Recognition runs locally, with no analytics or remote lookup requests. Clicking a globe link opens Google Maps with the detected address. Only extension preferences and matching rules are stored. CopyEmail writes to the clipboard when you click a copy icon; it never reads the clipboard or stores email addresses.
 
 A shortened address can be copied in full only if the page exposes the complete value. Editable fields, image text, and Chrome's protected pages are not supported.
 
@@ -59,7 +61,7 @@ npm run check
 The enabled Addresses rule contains ten format families covering US/UK, European,
 Japanese, Chinese, Korean, Indian and Singaporean address layouts.
 See [address format coverage and sources](docs/address-formats.md) for examples and limits. A copy button followed by a globe appears beside each match. The globe opens Google Maps
-in a new tab. The Settings tab’s **Google Maps links for addresses** checkbox is on
+in a new tab. The address rule’s **Maps** action is on
 by default; turn it off to keep only the copy button. Compact city/country labels in up to five ancestors enrich the query;
 nearest labels win, ambiguous labels are omitted, and already-present names are
 not appended again. Missing context is left out; this is pattern recognition,
@@ -68,8 +70,7 @@ not postal-address verification or geocoding. Unrecognized formats can use a cus
 Custom rules require a name and one or more regexes, entered one per line.
 The regexes are matched with OR semantics; overlapping alternatives produce one
 match, preferring the longer one. Existing single-regex settings migrate automatically.
-The **Addresses** checkbox in Patterns controls address copy buttons only.
-**Google Maps links for addresses** in Settings controls globe links independently.
+The address rule’s **Copy** and **Maps** checkboxes control their actions independently.
 Both on shows Copy then Globe; either can be used alone, and both off hides both.
 Address context lookup remains built in and checks up to five parent levels.
 
@@ -78,3 +79,7 @@ Address context lookup remains built in and checks up to five parent levels.
 It loads once per page/frame when an address needs context, and is reused on rescans. Country names are generated
 once per frame using browser translations and kept in a sorted-insertion Set.
 See `extension/data/README.md` for attribution, licensing and regeneration.
+
+## Architecture
+
+`Settings` owns persisted rules and revisions. `Scanner` traverses the page and composes regex, OR, and address patterns into detections with DOM ranges and full values. `ServiceCollection` prepares copy values or Google Maps URLs without executing them. `PageAugmenter` owns observation, page modifications, layout, and action execution. The popup and settings page share the Settings model.

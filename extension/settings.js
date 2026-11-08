@@ -1,3 +1,8 @@
+const Action = Object.freeze({ COPY: 'copy', OPEN_LINK: 'openLink' });
+const Appearance = Object.freeze({ SYSTEM: 'system', LIGHT: 'light', DARK: 'dark' });
+const BuiltinRuleType = Object.freeze({ EMAIL: 'email', PHONE: 'phone', ADDRESS: 'address' });
+let Settings;
+
 const CopyMailSettings = (() => {
     'use strict';
 
@@ -34,7 +39,7 @@ const CopyMailSettings = (() => {
         bounded(`(?:block[ \\t]+|blk[ \\t]+|no\\.?[ \\t]*)?${number}[ \\t]+${street}(?:[ \\t]+\\d{1,4})?(?:,[ \\t]*(?:${street}|#\\d{1,3}-\\d{1,4})){0,3}[ ,\\t-]+\\d{6}`)
     ];
 
-    /** @typedef {{ predefined: string|null, isOn: boolean, name: string, regexes: string[], action: string, parentLevels: number, parentRegex: string }} Rule */
+    /** @typedef {{ predefined: string|null, isOn: boolean, name: string, regexes: string[], action: string, parentLevels: number, parentRegex: string }} LegacyRule */
     const DEFAULT_PATTERNS = [
         { predefined: 'email', isOn: true, regexes: ["[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,63}\\b"], name: 'Email' },
         { predefined: 'phone', isOn: false, regexes: [String.raw`\+?\b\d[\d ().-]{6,}\d\b`], name: 'Phone' },
@@ -48,30 +53,35 @@ const CopyMailSettings = (() => {
         return new RegExp(source, /\\[pP]\{/.test(source) ? 'giu' : 'gi');
     }
 
-    /** @typedef {{ mode: string, patterns: string[], ignoreHoverHints: boolean }} WebsiteSettings */
+    const BUILTIN_IDS = Object.freeze({
+        [BuiltinRuleType.EMAIL]: '00000000-0000-4000-8000-000000000001',
+        [BuiltinRuleType.PHONE]: '00000000-0000-4000-8000-000000000002',
+        [BuiltinRuleType.ADDRESS]: '00000000-0000-4000-8000-000000000003'
+    });
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    /** @typedef {{ id: string, name: string, possibleActions: string[], enabledActions: string[], builtinType: string|null, patterns: string[] }} Rule */
+    /** @typedef {{ mode: string, patterns: string[], ignoreHoverHints: boolean, appearance: string, rules: Rule[] }} WebsiteSettings */
 
     /** @returns {WebsiteSettings} */
     function normalize(value) {
-        const patterns = Array.isArray(value?.patterns) ? value.patterns : [];
-        const copyPatterns = Array.isArray(value?.copyPatterns) ? [...value.copyPatterns] : DEFAULT_PATTERNS;
-        if (copyPatterns.some(rule => typeof rule?.regex === 'string' && !Array.isArray(rule.regexes)) &&
-            !copyPatterns.some(pattern => pattern?.predefined === 'address')) {
-            copyPatterns.push(DEFAULT_PATTERNS.find(pattern => pattern.predefined === 'address'));
-        }
+        const websitePatterns = Array.isArray(value?.patterns) ? value.patterns : [];
+        const rules = Array.isArray(value?.rules) ? normalizeModernRules(value.rules) : migrateLegacyRules(value);
         return {
+            appearance: Object.values(Appearance).includes(value?.appearance) ? value.appearance : Appearance.SYSTEM,
             ignoreHoverHints: value?.ignoreHoverHints !== false,
-            googleMapsLinks: value?.googleMapsLinks !== false,
-            copyPatterns: copyPatterns
-                .filter(rule => rule && (Array.isArray(rule.regexes) || typeof rule.regex === 'string'))
-                .map(normalizeRule),
+            googleMapsLinks: rules.some(rule => rule.builtinType === BuiltinRuleType.ADDRESS &&
+                rule.enabledActions.includes(Action.OPEN_LINK)),
+            copyPatterns: rules.map(toLegacyRule),
             mode: value?.mode === Mode.INCLUDE ? Mode.INCLUDE : Mode.EXCLUDE,
-            patterns: [...new Set(patterns.filter(pattern => typeof pattern === 'string')
-                .map(pattern => pattern.trim().toLowerCase()).filter(Boolean))]
+            patterns: [...new Set(websitePatterns.filter(pattern => typeof pattern === 'string')
+                .map(pattern => pattern.trim().toLowerCase()).filter(Boolean))],
+            rules
         };
     }
 
-    /** @returns {Rule} */
-    function normalizeRule(rule, index) {
+    /** @returns {LegacyRule} */
+    function normalizeLegacyRule(rule, index) {
         const preset = DEFAULT_PATTERNS.find(item => item.predefined === rule.predefined ||
             (!Object.hasOwn(rule, 'predefined') && item.regexes[0] === rule.regex && item.name === rule.name));
         const legacy = !Array.isArray(rule.regexes);
@@ -85,6 +95,103 @@ const CopyMailSettings = (() => {
             parentLevels: preset?.predefined === 'address' ? 5 : 0,
             parentRegex: '',
             name: preset?.name || name || (legacy ? `Custom rule ${index + 1}` : '')
+        };
+    }
+
+    function migrateLegacyRules(value) {
+        const legacyRules = Array.isArray(value?.copyPatterns) ? [...value.copyPatterns] : DEFAULT_PATTERNS;
+        if (legacyRules.some(rule => typeof rule?.regex === 'string' && !Array.isArray(rule.regexes)) &&
+            !legacyRules.some(pattern => pattern?.predefined === BuiltinRuleType.ADDRESS)) {
+            legacyRules.push(DEFAULT_PATTERNS.find(pattern => pattern.predefined === BuiltinRuleType.ADDRESS));
+        }
+        return legacyRules
+            .filter(rule => rule && (Array.isArray(rule.regexes) || typeof rule.regex === 'string'))
+            .map(normalizeLegacyRule)
+            .map((rule, index) => {
+                const builtinType = Object.values(BuiltinRuleType).includes(rule.predefined) ? rule.predefined : null;
+                const enabledActions = rule.isOn ? [Action.COPY] : [];
+                if (builtinType === BuiltinRuleType.ADDRESS && value?.googleMapsLinks !== false) {
+                    enabledActions.push(Action.OPEN_LINK);
+                }
+                return normalizeModernRule({
+                    id: legacyRules[index]?.id,
+                    name: rule.name,
+                    builtinType,
+                    enabledActions,
+                    patterns: rule.regexes
+                }, index);
+            });
+    }
+
+    function preserveLegacyAddressLinks(value) {
+        if (!value || Array.isArray(value.rules) || !Array.isArray(value.copyPatterns) ||
+            value.googleMapsLinks === false || value.copyPatterns.some(rule => rule?.predefined === BuiltinRuleType.ADDRESS)) {
+            return value;
+        }
+        return {
+            ...value,
+            copyPatterns: [...value.copyPatterns, {
+                ...DEFAULT_PATTERNS.find(rule => rule.predefined === BuiltinRuleType.ADDRESS),
+                isOn: false
+            }]
+        };
+    }
+
+    function storedValue(value) {
+        return {
+            appearance: value.appearance,
+            ignoreHoverHints: value.ignoreHoverHints,
+            mode: value.mode,
+            patterns: value.patterns,
+            rules: value.rules
+        };
+    }
+
+    function normalizeModernRules(rules) {
+        return rules.filter(rule => rule && typeof rule === 'object').map(normalizeModernRule);
+    }
+
+    /** @returns {Rule} */
+    function normalizeModernRule(rule, index) {
+        const builtinType = Object.values(BuiltinRuleType).includes(rule.builtinType) ? rule.builtinType : null;
+        const preset = DEFAULT_PATTERNS.find(item => item.predefined === builtinType);
+        const possibleActions = builtinType === BuiltinRuleType.ADDRESS
+            ? [Action.COPY, Action.OPEN_LINK] : [Action.COPY];
+        const requestedActions = Array.isArray(rule.enabledActions) ? rule.enabledActions : [];
+        const sources = preset?.regexes || (Array.isArray(rule.patterns) ? rule.patterns : []);
+        return {
+            id: builtinType ? BUILTIN_IDS[builtinType] : normalizeId(rule.id, rule, index),
+            name: preset?.name || (typeof rule.name === 'string' ? rule.name.trim() : ''),
+            possibleActions,
+            enabledActions: possibleActions.filter(action => requestedActions.includes(action)),
+            builtinType,
+            patterns: [...new Set(sources.filter(source => typeof source === 'string' && source.trim()))]
+        };
+    }
+
+    function normalizeId(id, rule, index) {
+        if (typeof id === 'string' && UUID.test(id)) return id.toLowerCase();
+        const input = JSON.stringify([index, rule.name, rule.patterns, rule.regexes, rule.regex]);
+        const hashes = [2166136261, 2166136261 ^ 0x9e3779b9, 2166136261 ^ 0x85ebca6b, 2166136261 ^ 0xc2b2ae35];
+        for (let hashIndex = 0; hashIndex < hashes.length; hashIndex++) {
+            for (let character = hashIndex; character < input.length; character += hashes.length) {
+                hashes[hashIndex] = Math.imul(hashes[hashIndex] ^ input.charCodeAt(character), 16777619) >>> 0;
+            }
+        }
+        const hex = hashes.map(hash => hash.toString(16).padStart(8, '0')).join('');
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20)}`;
+    }
+
+    /** @returns {LegacyRule} */
+    function toLegacyRule(rule) {
+        return {
+            predefined: rule.builtinType,
+            isOn: rule.enabledActions.includes(Action.COPY),
+            regexes: [...rule.patterns],
+            action: rule.builtinType === BuiltinRuleType.ADDRESS ? 'map' : 'copy',
+            parentLevels: rule.builtinType === BuiltinRuleType.ADDRESS ? 5 : 0,
+            parentRegex: '',
+            name: rule.name
         };
     }
 
@@ -134,5 +241,77 @@ const CopyMailSettings = (() => {
         return settings.mode === Mode.INCLUDE ? matched : !matched;
     }
 
-    return Object.freeze({ Mode, STORAGE_KEY, normalize, validateRegex, parsePatterns, matches, isEnabled });
+    Settings = class Settings {
+        #listeners = new Set();
+        #storage;
+        #storageChanges;
+        #storageListener;
+
+        constructor(storage = globalThis.chrome?.storage?.local,
+            storageChanges = globalThis.chrome?.storage?.onChanged) {
+            this.value = normalize();
+            this.revision = 0;
+            this.#storage = storage;
+            this.#storageChanges = storageChanges;
+            this.#storageListener = (changes, area) => {
+                if (area === 'local' && Object.hasOwn(changes, STORAGE_KEY)) {
+                    this.update(changes[STORAGE_KEY].newValue);
+                }
+            };
+            this.#storageChanges?.addListener?.(this.#storageListener);
+        }
+
+        async load() {
+            if (!this.#storage?.get) return this.value;
+            const revisionBeforeLoad = this.revision;
+            const stored = await this.#storage.get(STORAGE_KEY);
+            if (this.revision !== revisionBeforeLoad) return this.value;
+            const rawValue = stored?.[STORAGE_KEY];
+            const normalized = normalize(preserveLegacyAddressLinks(rawValue));
+            const persisted = storedValue(normalized);
+            this.update(normalized);
+            if (JSON.stringify(storedValue(this.value)) !== JSON.stringify(persisted)) return this.value;
+            if (rawValue !== undefined && this.#storage.set && JSON.stringify(rawValue) !== JSON.stringify(persisted)) {
+                try {
+                    await this.#storage.set({ [STORAGE_KEY]: persisted });
+                } catch (error) {
+                    // Loaded preferences remain usable; retry migration on the next load.
+                    console.warn('CopyEmail could not persist migrated settings.', error);
+                }
+            }
+            return this.value;
+        }
+
+        async save(value) {
+            const revisionBeforeSave = this.revision;
+            const normalized = normalize(value);
+            if (this.#storage?.set) {
+                await this.#storage.set({ [STORAGE_KEY]: storedValue(normalized) });
+            }
+            if (this.revision === revisionBeforeSave) this.update(normalized);
+            return this.value;
+        }
+
+        update(value) {
+            const normalized = normalize(value);
+            if (JSON.stringify(normalized) === JSON.stringify(this.value)) return false;
+            this.value = normalized;
+            this.revision++;
+            for (const listener of this.#listeners) listener(this.value, this.revision);
+            return true;
+        }
+
+        subscribe(listener) {
+            this.#listeners.add(listener);
+            return () => this.#listeners.delete(listener);
+        }
+
+        dispose() {
+            this.#storageChanges?.removeListener?.(this.#storageListener);
+            this.#listeners.clear();
+        }
+    };
+
+    return Object.freeze({ Action, Appearance, BuiltinRuleType, Mode, STORAGE_KEY, Settings, normalize,
+        validateRegex, parsePatterns, matches, isEnabled });
 })();

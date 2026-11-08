@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CopyEmail</title>
+    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="theme.css">
+    <script src="settings.js" defer></script>
+    <script src="popup.js" defer></script>
+</head>
+<body>
+    <main class="popup">
+        <header class="head">
+            <div class="identity"><img src="icons/icon48.png" width="34" height="34" alt=""><div><h1>CopyEmail</h1><p>Smart actions on websites</p></div></div>
+            <button class="icon-button" id="open-settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-.5 2.5-2 1.2L4 6l-2 3.5 2 1.7v2L2 15l2 3.5 2.5-.7 2 1.2L9 21h6l.5-2 2-1.2 2.5.7 2-3.5-2-1.8v-2l2-1.7L20 6l-2.5.7-2-1.2L15 3Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </header>
+        <div class="scroller">
+            <div id="rules"></div>
+        </div>
+        <button class="add-row" id="add-category"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add custom category</button>
+        <footer class="foot"><span><i></i><span id="enabled-count">Loading actions…</span></span><span id="category-count"></span></footer>
+        <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
+    </main>
+</body>
+</html>

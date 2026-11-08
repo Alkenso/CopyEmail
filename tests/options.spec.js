@@ -35,6 +35,7 @@ test('saves website modes, updates open pages and frames, and restores settings'
         await expect(item).toHaveCount(1);
         const extensionId = await item.getAttribute('id');
         await options.goto(`chrome-extension://${extensionId}/options.html`);
+        await options.getByRole('tab', { name: 'Websites', exact: true }).click();
         const everywhere = options.getByRole('radio', { name: 'All sites except…', exact: true });
         const nowhere = options.getByRole('radio', { name: 'Only these sites', exact: true });
         const patterns = options.getByLabel('Website patterns', { exact: true });
@@ -43,10 +44,10 @@ test('saves website modes, updates open pages and frames, and restores settings'
         await expect(patterns).toHaveValue('');
         await expect(save).toBeDisabled();
 
-        await nowhere.check();
+        await nowhere.locator('..').click();
         await expect(save).toBeEnabled();
         await expect(options.getByRole('status')).toHaveText('Unsaved changes.');
-        await everywhere.check();
+        await everywhere.locator('..').click();
         await expect(save).toBeDisabled();
         await expect(options.getByRole('status')).toHaveText('');
         await patterns.fill('example.com');
@@ -74,9 +75,10 @@ test('saves website modes, updates open pages and frames, and restores settings'
         await page.reload();
         await expect(page.locator('copymail-overlay')).toHaveCount(0);
         await options.reload();
+        await options.getByRole('tab', { name: 'Websites', exact: true }).click();
         await expect(patterns).toHaveValue('copymai?.test');
 
-        await nowhere.check();
+        await nowhere.locator('..').click();
         await save.click();
         await expect(button).toBeVisible();
         await expect(frameButton).toBeVisible();
@@ -89,48 +91,33 @@ test('saves website modes, updates open pages and frames, and restores settings'
         await expect(button).toBeVisible();
 
         await patterns.fill('https://copymail.test/');
-        await save.click();
-        await expect(options.getByRole('status')).toContainText('hostname');
+        await expect(save).toBeDisabled();
+        await expect(patterns).toHaveAttribute('aria-invalid', 'true');
         await options.reload();
+        await options.getByRole('tab', { name: 'Websites', exact: true }).click();
         await expect(nowhere).toBeChecked();
         await expect(patterns).toHaveValue('*.test');
 
-        await everywhere.check();
+        await everywhere.locator('..').click();
         await patterns.fill('');
         await save.click();
         await expect(button).toBeVisible();
-        await options.getByRole('tab', { name: 'Patterns', exact: true }).click();
-        const rows = options.locator('#copy-patterns tr');
+        await options.getByRole('tab', { name: 'Categories', exact: true }).click();
+        const rows = options.locator('.rule-row');
         await expect(rows).toHaveCount(3);
-        await expect(options.getByRole('columnheader')).toHaveText(['', 'Regexes (one per line)', 'Name (required)', '']);
-        await expect(options.locator('[data-action], [data-parent-levels], [data-parent-regex]')).toHaveCount(0);
-        await expect(rows.nth(2).getByLabel('Name', { exact: true })).toHaveValue('Addresses');
-        await expect(rows.nth(2).getByRole('checkbox')).toBeChecked();
-        await expect(rows.getByRole('button', { name: 'Remove rule' })).toHaveCount(0);
-        await expect(rows.nth(0).getByRole('checkbox')).toBeChecked();
-        await expect(rows.nth(1).getByRole('checkbox')).not.toBeChecked();
-        for (const index of [0, 1, 2]) {
-            await expect(rows.nth(index).getByLabel('Regexes', { exact: true })).toHaveAttribute('readonly', '');
-            await expect(rows.nth(index).getByLabel('Name', { exact: true })).toHaveAttribute('readonly', '');
-            await expect(rows.nth(index).getByRole('checkbox')).toBeEnabled();
-        }
-        await options.getByRole('button', { name: 'Add Rule', exact: true }).click();
-        const regex = rows.nth(3).getByLabel('Regexes', { exact: true });
-        await expect(save).toBeDisabled();
-        await regex.fill('[');
-        await expect(regex).toHaveAttribute('aria-invalid', 'true');
-        await expect(options.getByRole('button', { name: 'Add Rule', exact: true })).toBeDisabled();
-        await expect(save).toBeDisabled();
+        await expect(rows.getByRole('button', { name: 'Delete category' })).toHaveCount(0);
+        await expect(options.getByLabel('Email: Copy', { exact: true })).toBeChecked();
+        await expect(options.getByLabel('Phone: Copy', { exact: true })).not.toBeChecked();
+        await expect(options.getByLabel('Addresses: Maps', { exact: true })).toBeChecked();
+        await options.getByRole('button', { name: 'Add category', exact: true }).click();
+        const regex = options.getByLabel('Regexes', { exact: true });
+        await options.getByLabel('Name', { exact: true }).fill('Orders');
         await regex.fill('ORDER-[0-9]+\n[');
+        await options.getByRole('button', { name: 'Save category', exact: true }).click();
         await expect(regex).toHaveAttribute('aria-invalid', 'true');
-        await expect(rows.nth(3).locator('.regex-error')).toContainText('Line 2:');
+        await expect(options.locator('#rule-error')).toContainText('Line 2:');
         await regex.fill('ORDER-[0-9]+\nITEM-[0-9]+');
-        await expect(save).toBeDisabled();
-        await rows.nth(3).getByLabel('Name', { exact: true }).fill('   ');
-        await expect(save).toBeDisabled();
-        await rows.nth(3).getByLabel('Name', { exact: true }).fill('Orders');
-        await expect(regex).toHaveAttribute('aria-invalid', 'false');
-        await expect(options.getByRole('button', { name: 'Add Rule', exact: true })).toBeEnabled();
+        await options.getByRole('button', { name: 'Save category', exact: true }).click();
         await page.locator('body').evaluate(element => {
             const paragraph = document.createElement('p');
             paragraph.textContent = 'ORDER-123 ITEM-456';
@@ -141,15 +128,18 @@ test('saves website modes, updates open pages and frames, and restores settings'
         await save.click();
         await expect(custom).toBeVisible();
         await expect(page.getByRole('button', { name: 'Copy ITEM-456', exact: true })).toBeVisible();
-        await rows.nth(0).getByRole('checkbox').uncheck();
+        await options.getByLabel('Email: Copy', { exact: true }).uncheck();
         await save.click();
         await expect(button).toHaveCount(0);
         await expect(custom).toBeVisible();
         await expect(page.getByRole('button', { name: 'Copy ITEM-456', exact: true })).toBeVisible();
         await options.reload();
-        await options.getByRole('tab', { name: 'Patterns', exact: true }).click();
-        await expect(rows.nth(3).getByLabel('Regexes', { exact: true })).toHaveValue('ORDER-[0-9]+\nITEM-[0-9]+');
-        await rows.nth(3).getByRole('button', { name: 'Remove rule' }).click();
+        await options.getByRole('tab', { name: 'Websites', exact: true }).click();
+        await options.getByRole('tab', { name: 'Categories', exact: true }).click();
+        await rows.nth(3).getByRole('button', { name: 'Edit category' }).click();
+        await expect(regex).toHaveValue('ORDER-[0-9]+\nITEM-[0-9]+');
+        await options.getByRole('button', { name: 'Cancel', exact: true }).click();
+        await rows.nth(3).getByRole('button', { name: 'Delete category' }).click();
         await save.click();
         await expect(custom).toHaveCount(0);
         await options.screenshot({ path: test.info().outputPath('settings.png'), fullPage: true });

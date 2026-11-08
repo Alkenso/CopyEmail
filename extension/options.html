@@ -5,66 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CopyEmail settings</title>
     <link rel="stylesheet" href="options.css">
+    <link rel="stylesheet" href="theme.css">
     <script src="settings.js" defer></script>
     <script src="options.js" defer></script>
 </head>
 <body>
-    <main>
-        <header>
-            <svg class="app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-                <rect x="8" y="8" width="12" height="12" rx="2"/>
-                <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>
-            </svg>
-            <div><h1>CopyEmail</h1><p>Choose where copy icons appear.</p></div>
+    <main class="settings-shell">
+        <header class="app-header">
+            <div class="identity">
+                <img src="icons/icon48.png" width="40" height="40" alt="">
+                <div><h1>CopyEmail</h1><p>Smart actions on websites</p></div>
+            </div>
+            <span class="save-state" id="header-status" aria-hidden="true">Saved</span>
         </header>
         <form id="settings-form">
             <fieldset id="settings-fields" disabled>
-                <legend>Settings</legend>
-                <div role="tablist" aria-label="Settings tabs">
-                    <button type="button" role="tab" id="website-tab" aria-controls="website-panel" aria-selected="true">Websites</button>
-                    <button type="button" role="tab" id="patterns-tab" aria-controls="patterns-panel" aria-selected="false">Patterns</button>
-                    <button type="button" role="tab" id="general-tab" aria-controls="general-panel" aria-selected="false">Settings</button>
+                <div class="settings-layout">
+                    <nav class="settings-nav" role="tablist" aria-label="Settings">
+                        <button type="button" role="tab" id="patterns-tab" aria-controls="patterns-panel" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Categories</button>
+                        <button type="button" role="tab" id="website-tab" aria-controls="website-panel" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-4 5-4 13 0 18M12 3c4 5 4 13 0 18"/></svg>Websites</button>
+                        <button type="button" role="tab" id="general-tab" aria-controls="general-panel" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>General</button>
+                    </nav>
+                    <div class="settings-content">
+                        <section id="patterns-panel" role="tabpanel" aria-labelledby="patterns-tab">
+                            <div class="section-heading"><div><h2>Categories</h2><p>Choose which actions appear when CopyEmail recognizes text.</p></div><button type="button" id="add-pattern" class="primary-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add category</button></div>
+                            <div class="rule-list" id="copy-patterns"></div>
+                        </section>
+                        <section id="website-panel" role="tabpanel" aria-labelledby="website-tab" hidden>
+                            <div class="section-heading"><div><h2>Websites</h2><p>Control where actions are shown.</p></div></div>
+                            <div class="setting-card">
+                                <div class="mode-switch" role="group" aria-label="Website mode"><label><input type="radio" name="mode" value="everywhere-except" checked><span>All sites except…</span></label><label><input type="radio" name="mode" value="nowhere-but"><span>Only these sites</span></label></div>
+                                <p id="mode-description">Show actions everywhere except on websites matching this list.</p>
+                                <label class="field-label" for="patterns">Website patterns</label>
+                                <textarea id="patterns" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="pattern-help empty-list" placeholder="example.com&#10;*.example.com&#10;mail?.example.org"></textarea>
+                                <div id="pattern-help" class="help-text">Enter one hostname per line. Use <code>*</code> for any number of characters and <code>?</code> for one character. Do not include a scheme, path, or port.</div>
+                                <p id="empty-list" class="help-text">An empty list enables CopyEmail everywhere.</p>
+                            </div>
+                        </section>
+                        <section id="general-panel" role="tabpanel" aria-labelledby="general-tab" hidden>
+                            <div class="section-heading"><div><h2>General</h2><p>Adjust how CopyEmail behaves on a page.</p></div></div>
+                            <div class="setting-card settings-stack">
+                                <label class="toggle-row appearance-row" for="appearance"><span><strong>Appearance</strong><small>Choose a color scheme, or follow your system.</small></span><select id="appearance" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+                                <label class="toggle-row"><span><strong>Ignore hover hints</strong><small>Skip temporary tooltips and previews that appear while hovering.</small></span><input type="checkbox" id="ignore-hover-hints" checked></label></div>
+                        </section>
+                    </div>
                 </div>
-                <section id="website-panel" role="tabpanel" aria-labelledby="website-tab">
-                <div class="mode-switch" role="group" aria-label="Website mode">
-                    <label><input type="radio" name="mode" value="everywhere-except" checked>All sites except…</label>
-                    <label><input type="radio" name="mode" value="nowhere-but">Only these sites</label>
-                </div>
-                <p id="mode-description">Show copy icons everywhere except on websites matching the list below.</p>
-
-                <label class="patterns-label" for="patterns">Website patterns</label>
-                <textarea id="patterns" rows="7" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="pattern-help pattern-examples empty-list" placeholder="example.com&#10;*.example.com&#10;mail?.example.org"></textarea>
-                <div id="pattern-help">
-                    <p>One hostname pattern per line. Only <code>*</code> and <code>?</code> are supported as wildcards:</p>
-                    <ul>
-                        <li><code>*</code> matches zero or more characters.</li>
-                        <li><code>?</code> matches exactly one.</li>
-                    </ul>
-                    <p>Matching ignores case and covers the entire hostname. Do not include <code>https://</code>, paths, or ports.</p>
-                </div>
-                <div id="pattern-examples" class="examples">
-                    <p><code>example.com</code> matches that website only.</p>
-                    <p><code>*.example.com</code> matches subdomains; add <code>example.com</code> separately for the main website.</p>
-                    <p><code>mail?.example.org</code> matches <code>mail1.example.org</code>, but not <code>mail12.example.org</code>.</p>
-                </div>
-                <p id="empty-list">An empty list enables CopyEmail everywhere.</p>
-                </section>
-                <section id="patterns-panel" role="tabpanel" aria-labelledby="patterns-tab" hidden>
-                    <p>Each rule needs a name and at least one JavaScript regex, without surrounding slashes. Enter one regex per line. Any regex can match (OR); matching ignores case. Earlier rules take priority for overlapping matches.</p>
-                    <p>The Addresses rule controls copy buttons; Google Maps links are controlled separately in Settings.</p>
-                    <table><thead><tr><th aria-label="Enabled"></th><th>Regexes (one per line)</th><th>Name (required)</th><th></th></tr></thead><tbody id="copy-patterns"></tbody></table>
-                    <button type="button" id="add-pattern">Add Rule</button>
-                </section>
-                <section id="general-panel" role="tabpanel" aria-labelledby="general-tab" hidden>
-                    <label class="setting-toggle"><input type="checkbox" id="ignore-hover-hints" aria-describedby="hover-hints-help" checked>Ignore hover hints</label>
-                    <p id="hover-hints-help">Skip copy icons in detected tooltips and temporary hints that appear on hover.</p>
-                    <label class="setting-toggle"><input type="checkbox" id="google-maps-links" checked>Google Maps links for addresses</label>
-                    <p>Show globe links for detected addresses, independently of the Addresses copy checkbox.</p>
-                </section>
-                <div class="form-footer"><button type="submit">Save Settings</button><p id="status" role="status" aria-live="polite"></p></div>
+                <footer class="form-footer"><p id="status" role="status" aria-live="polite"></p><button type="button" class="secondary-button" id="reload-settings" hidden>Reload saved</button><button type="submit" class="primary-button">Save settings</button></footer>
             </fieldset>
         </form>
-        <p class="footnote">Settings are saved in this browser and apply to open tabs immediately. Rules use the website in the address bar, including its embedded frames.</p>
     </main>
+    <dialog id="rule-dialog" aria-labelledby="rule-dialog-title">
+        <form method="dialog" id="rule-form">
+            <div class="dialog-heading"><div><h2 id="rule-dialog-title">New custom category</h2><p>Define the category and the text it recognizes.</p></div><button type="button" class="icon-button" id="close-rule" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+            <input type="hidden" id="rule-id">
+            <label class="field-label" for="rule-name">Name</label><input class="text-field" id="rule-name" maxlength="44" placeholder="e.g. Booking reference" required>
+            <label class="field-label" for="rule-patterns">Regexes</label><textarea id="rule-patterns" rows="7" spellcheck="false" placeholder="e.g. BK-[0-9]{4}-[0-9]+" required></textarea><small class="regex-error" id="rule-error"></small>
+            <div class="dialog-actions"><button type="button" class="secondary-button" id="cancel-rule">Cancel</button><button type="submit" class="primary-button">Save category</button></div>
+        </form>
+    </dialog>
 </body>
 </html>

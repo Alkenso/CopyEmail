@@ -1,0 +1,12 @@
+:root,
+:root[data-appearance="system"] {
+    color-scheme: light dark;
+}
+
+:root[data-appearance="light"] {
+    color-scheme: light;
+}
+
+:root[data-appearance="dark"] {
+    color-scheme: dark;
+}

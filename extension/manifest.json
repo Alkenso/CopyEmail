@@ -25,6 +25,8 @@
                 "settings.js",
                 "parser.js",
                 "geography.js",
+                "scanner.js",
+                "services.js",
                 "content.js"
             ],
             "run_at": "document_idle",
@@ -42,5 +44,9 @@
                 "<all_urls>"
             ]
         }
-    ]
+    ],
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "CopyEmail"
+    }
 }

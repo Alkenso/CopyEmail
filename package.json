@@ -5,7 +5,7 @@
     "description": "Copy visible email addresses with a subtle inline button.",
     "scripts": {
         "test": "playwright test",
-        "check": "node --check extension/content.js && node --check extension/settings.js && node --check extension/options.js && node --check extension/parser.js && node --check extension/geography.js"
+        "check": "node -e \"const fs=require('node:fs'),cp=require('node:child_process');for(const file of fs.readdirSync('extension').filter(f=>f.endsWith('.js')))cp.execFileSync(process.execPath,['--check','extension/'+file],{stdio:'inherit'});\""
     },
     "devDependencies": {
         "@playwright/test": "1.64.1"
