@@ -414,7 +414,7 @@ class PageAugmenter {
         const spacer = document.createElement('span');
         spacer.setAttribute('aria-hidden', 'true');
         spacer.style.cssText =
-            'all:initial!important;display:inline!important;padding-left:26px!important;font-size:0!important;line-height:0!important;pointer-events:none!important;';
+            'all:initial!important;display:inline!important;white-space:inherit!important;padding-left:26px!important;font-size:0!important;line-height:0!important;pointer-events:none!important;';
         spacer.style.setProperty('padding-left', `${width}px`, 'important');
         this.spacers.add(spacer);
         const insertion = range.cloneRange();

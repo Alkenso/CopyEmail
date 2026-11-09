@@ -1,4 +1,66 @@
 :root { --panel:light-dark(#f8fafc,#0e141d); --card:light-dark(#fff,#151d28); --border:light-dark(#e5e7eb,#303b4d); --text:light-dark(#172033,#f3f6fb); --muted:light-dark(#747f91,#9aa8bd); --blue:light-dark(#2563eb,#6698ff); --control-blue:light-dark(#2563eb,#2563eb); --blue-soft:light-dark(#eff6ff,#1b3154); --danger:light-dark(#dc2626,#ff7878); --focus:light-dark(#60a5fa,#7cb4ff); --icon-shadow:light-dark(#2563eb24,#00000040); --form-shadow:light-dark(#0f172a0a,#00000030); --nav-surface:light-dark(#fbfcfe,#121a25); --primary-hover:light-dark(#1d4ed8,#1d4ed8); --rule-surface:light-dark(#fff,#151d28); --group-text:light-dark(#52617a,#a9b5c7); --group-surface:light-dark(#f8fafc,#1a2330); --separator:light-dark(#e2e8f0,#2b3647); --icon-text:light-dark(#111827,#e7edf6); --icon-surface:light-dark(#f1f3f6,#232d3a); --rule-title:light-dark(#0f172a,#f4f7fb); --rule-pattern:light-dark(#64748b,#9ba9bc); --action-text:light-dark(#111827,#e8edf5); --danger-soft:light-dark(#fef2f2,#341d24); --mode-border:light-dark(#93b4fb,#527fc9); --input-border:light-dark(#d5dbe5,#3a4659); --dialog-shadow:light-dark(#0f172a2c,#00000078); --dialog-backdrop:light-dark(#17203355,#00000088); font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--text); background:var(--panel); }
+/* Safari extension options pages can resolve light-dark() using the system
+   appearance even when color-scheme is explicitly set. Keep explicit palettes. */
+:root[data-appearance="light"] {
+    --panel:#f8fafc;
+    --card:#fff;
+    --border:#e5e7eb;
+    --text:#172033;
+    --muted:#747f91;
+    --blue:#2563eb;
+    --control-blue:#2563eb;
+    --blue-soft:#eff6ff;
+    --danger:#dc2626;
+    --focus:#60a5fa;
+    --icon-shadow:#2563eb24;
+    --form-shadow:#0f172a0a;
+    --nav-surface:#fbfcfe;
+    --primary-hover:#1d4ed8;
+    --rule-surface:#fff;
+    --group-text:#52617a;
+    --group-surface:#f8fafc;
+    --separator:#e2e8f0;
+    --icon-text:#111827;
+    --icon-surface:#f1f3f6;
+    --rule-title:#0f172a;
+    --rule-pattern:#64748b;
+    --action-text:#111827;
+    --danger-soft:#fef2f2;
+    --mode-border:#93b4fb;
+    --input-border:#d5dbe5;
+    --dialog-shadow:#0f172a2c;
+    --dialog-backdrop:#17203355;
+}
+:root[data-appearance="dark"] {
+    --panel:#0e141d;
+    --card:#151d28;
+    --border:#303b4d;
+    --text:#f3f6fb;
+    --muted:#9aa8bd;
+    --blue:#6698ff;
+    --control-blue:#2563eb;
+    --blue-soft:#1b3154;
+    --danger:#ff7878;
+    --focus:#7cb4ff;
+    --icon-shadow:#00000040;
+    --form-shadow:#00000030;
+    --nav-surface:#121a25;
+    --primary-hover:#1d4ed8;
+    --rule-surface:#151d28;
+    --group-text:#a9b5c7;
+    --group-surface:#1a2330;
+    --separator:#2b3647;
+    --icon-text:#e7edf6;
+    --icon-surface:#232d3a;
+    --rule-title:#f4f7fb;
+    --rule-pattern:#9ba9bc;
+    --action-text:#e8edf5;
+    --danger-soft:#341d24;
+    --mode-border:#527fc9;
+    --input-border:#3a4659;
+    --dialog-shadow:#00000078;
+    --dialog-backdrop:#00000088;
+}
 * { box-sizing:border-box; }
 [hidden] { display:none !important; }
 body { margin:0; padding:38px 24px; }

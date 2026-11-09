@@ -218,6 +218,26 @@ test('finds separate addresses, inline markup, and ignores hidden and editable t
     await expect(copyButton(page, 'split@example.com')).toBeVisible();
 });
 
+for (const whiteSpace of ['nowrap', 'pre']) {
+    for (const width of [1000, 390]) {
+        test(`preserves a single-line preview with ${whiteSpace} whitespace at ${width}px`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 700 });
+            await load(page, `
+                <div id="preview" style="overflow:hidden;text-overflow:ellipsis;white-space:${whiteSpace}">Receipt alice@example.com Booking details Reservation number 5738404000 Your receipt and additional booking information repeated to fill the preview line.</div>
+                <script>
+                    window.originalPreviewLayout = document.querySelector('#preview').getBoundingClientRect().toJSON();
+                </script>
+            `);
+            const button = copyButton(page, 'alice@example.com');
+            await expect(button).toBeVisible();
+            const layout = await page.locator('#preview').evaluate(preview => preview.getBoundingClientRect().toJSON());
+            expect(layout).toEqual(await page.evaluate(() => window.originalPreviewLayout));
+            await button.click();
+            await expect(button).toHaveAttribute('title', 'Copied!');
+        });
+    }
+}
+
 test('aligns the icon at the visible trailing edge of a CSS-truncated email', async ({ page }) => {
     await load(page, '<div id="email" style="width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">very.long.address@example.com</div>');
     const button = copyButton(page, 'very.long.address@example.com');
