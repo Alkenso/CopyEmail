@@ -57,6 +57,7 @@ class PageAugmenter {
                 cursor: pointer;
                 pointer-events: auto;
             }
+            a { border-radius: 0; }
             :is(button, a):focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
             :is(button, a)[hidden] { display: none; }
             button[data-status="copied"] { color: #16803c; opacity: 1; }

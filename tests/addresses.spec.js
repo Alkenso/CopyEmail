@@ -85,6 +85,28 @@ test('globe opens the encoded query in a new tab', async ({ page, context }) => 
     await popup.close();
 });
 
+test('globe opens Maps across its full hit area, including transparent edges and corners', async ({ page, context }) => {
+    await load(page, '<p>10 Downing Street</p>');
+    const link = mapLink(page, '10 Downing Street');
+    await expect(link).toBeVisible();
+    await context.route('https://www.google.com/maps/**', route => route.fulfill({ body: 'Map destination' }));
+    const box = await link.boundingBox();
+    for (const y of [0.5, box.height / 2, box.height - 0.5]) {
+        for (const x of [0.5, box.width / 2, box.width - 0.5]) {
+            expect(await link.evaluate((element, point) => {
+                const rect = element.getBoundingClientRect();
+                return element.getRootNode().elementFromPoint(rect.x + point.x, rect.y + point.y) === element;
+            }, { x, y }), `globe receives clicks at (${x}, ${y})`).toBe(true);
+            const popupPromise = page.waitForEvent('popup');
+            await page.mouse.click(box.x + x, box.y + y);
+            const popup = await popupPromise;
+            await popup.waitForLoadState();
+            expect(new URL(popup.url()).searchParams.get('query')).toBe('10 Downing Street');
+            await popup.close();
+        }
+    }
+});
+
 test('metadata addresses retain map actions and direct body headings supply context', async ({ page }) => {
     await load(page, '<h2>Warszawa</h2><p title="Aleja Rzeczypospolitej 18">Aleja Rzeczy…</p>');
     await expect(mapLink(page, 'Aleja Rzeczypospolitej 18, Warszawa')).toBeVisible();
