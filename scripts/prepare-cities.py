@@ -13,6 +13,6 @@ for row in rows:
         name = unicodedata.normalize('NFC', name.strip().lower())
         if name:
             names.add(name)
-output = pathlib.Path(__file__).resolve().parents[1] / 'extension/data/cities.txt'
+output = pathlib.Path(__file__).resolve().parents[1] / 'extension/app/data/cities.txt'
 output.write_text('\n'.join(sorted(names)) + '\n', encoding='utf-8')
 print(f'{len(rows)} cities; {len(names)} unique names; {output.stat().st_size} bytes')

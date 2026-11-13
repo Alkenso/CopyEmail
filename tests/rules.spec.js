@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 function modules() {
-    const sources = ['settings', 'patterns', 'scanner'].map(file => fs.readFileSync(path.join(__dirname, `../extension/${file}.js`), 'utf8')).join('\n');
+    const sources = ['settings', 'patterns', 'scanner'].map(file => fs.readFileSync(path.join(__dirname, `../extension/app/${file}.js`), 'utf8')).join('\n');
     return vm.runInNewContext(`${sources}\n({ settings: CopyMailSettings, patterns: CopyMailPatterns, Scanner: CopyMailScanner.Scanner })`);
 }
 

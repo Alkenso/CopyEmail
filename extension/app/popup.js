@@ -122,14 +122,14 @@
 
     function openOptions(hash = '') {
         chrome.runtime.openOptionsPage().then(() => {
-            if (hash) chrome.tabs?.create?.({ url: chrome.runtime.getURL(`options.html${hash}`) });
+            if (hash) chrome.tabs?.create?.({ url: chrome.runtime.getURL(`app/options.html${hash}`) });
             window.close();
         });
     }
 
     document.querySelector('#open-settings').addEventListener('click', () => openOptions());
     addCategory.addEventListener('click', () => {
-        chrome.tabs.create({ url: chrome.runtime.getURL('options.html#new-rule') });
+        chrome.tabs.create({ url: chrome.runtime.getURL('app/options.html#new-rule') });
         window.close();
     });
 

@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const scriptPath = path.join(__dirname, '../extension/content.js');
+const scriptPath = path.join(__dirname, '../extension/app/content.js');
 
 async function load(page, html, protocol = 'http') {
     await page.route(`${protocol}://copymail.test/**`, route => route.fulfill({
@@ -11,13 +11,13 @@ async function load(page, html, protocol = 'http') {
     }));
     await page.goto(`${protocol}://copymail.test/`);
     if (fs.existsSync(scriptPath)) {
-        await page.addScriptTag({ path: path.join(__dirname, '../extension/settings.js') });
-        await page.addScriptTag({ path: path.join(__dirname, '../extension/patterns.js') });
-        await page.addScriptTag({ path: path.join(__dirname, '../extension/geography.js') });
-        await page.addScriptTag({ path: path.join(__dirname, '../extension/scanner.js') });
-        await page.addScriptTag({ path: path.join(__dirname, '../extension/services.js') });
+        await page.addScriptTag({ path: path.join(__dirname, '../extension/app/settings.js') });
+        await page.addScriptTag({ path: path.join(__dirname, '../extension/app/patterns.js') });
+        await page.addScriptTag({ path: path.join(__dirname, '../extension/app/geography.js') });
+        await page.addScriptTag({ path: path.join(__dirname, '../extension/app/scanner.js') });
+        await page.addScriptTag({ path: path.join(__dirname, '../extension/app/services.js') });
         await page.addScriptTag({ path: scriptPath });
-        await page.addScriptTag({ path: path.join(__dirname, '../extension/bootstrap.js') });
+        await page.addScriptTag({ path: path.join(__dirname, '../extension/app/bootstrap.js') });
     }
 }
 

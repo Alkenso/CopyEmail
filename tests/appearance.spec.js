@@ -24,7 +24,7 @@ async function openSurface(page, surface) {
     await page.route('http://appearance.test/**', async route => {
         const filename = new URL(route.request().url()).pathname.slice(1);
         const contentType = filename.endsWith('.css') ? 'text/css' : filename.endsWith('.js') ? 'text/javascript' : filename.endsWith('.png') ? 'image/png' : 'text/html';
-        await route.fulfill({ contentType, body: await fs.readFile(path.join(__dirname, '../extension', filename)) });
+        await route.fulfill({ contentType, body: await fs.readFile(path.join(__dirname, '../extension/app', filename)) });
     });
     await page.goto(`http://appearance.test/${surface}.html`);
     await expect(page.locator('html')).toHaveAttribute('data-appearance', 'system');

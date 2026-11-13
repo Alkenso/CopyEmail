@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 function settingsModule(chrome, logger = { warn() {} }) {
-    const filename = path.join(__dirname, '../extension/settings.js');
+    const filename = path.join(__dirname, '../extension/app/settings.js');
     const source = fs.readFileSync(filename, 'utf8');
     return vm.runInNewContext(`${source}\n({ ...CopyMailSettings, CopyMailSettings })`, { chrome, console: logger });
 }

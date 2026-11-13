@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 function settingsModule() {
-    const filename = path.join(__dirname, '../extension/settings.js');
+    const filename = path.join(__dirname, '../extension/app/settings.js');
     expect(fs.existsSync(filename), 'Shared website settings implementation exists').toBe(true);
     return vm.runInNewContext(`${fs.readFileSync(filename, 'utf8')}\nCopyMailSettings;`);
 }

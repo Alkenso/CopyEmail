@@ -5,7 +5,7 @@ const path = require('node:path');
 async function loadScanner(page, html) {
     await page.setContent(`<main>${html}</main>`);
     for (const file of ['settings', 'patterns', 'scanner']) {
-        await page.addScriptTag({ path: path.join(__dirname, `../extension/${file}.js`) });
+        await page.addScriptTag({ path: path.join(__dirname, `../extension/app/${file}.js`) });
     }
 }
 

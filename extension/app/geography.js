@@ -20,7 +20,7 @@ const CopyMailGeography = (() => {
     function load() {
         if (!loading) {
             const url = typeof chrome !== 'undefined' && chrome.runtime?.getURL
-                ? chrome.runtime.getURL('data/cities.txt')
+                ? chrome.runtime.getURL('app/data/cities.txt')
                 : new URL('data/cities.txt', document.currentScript?.src || location.href).href;
             loading = fetch(url).then(response => {
                 if (!response.ok) throw new Error(`City data: HTTP ${response.status}`);

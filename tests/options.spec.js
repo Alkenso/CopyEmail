@@ -6,7 +6,7 @@ const path = require('node:path');
 test('saves website modes, updates open pages and frames, and restores settings', async () => {
     const extensionPath = path.join(__dirname, '../extension');
     const manifest = JSON.parse(await fs.readFile(path.join(extensionPath, 'manifest.json'), 'utf8'));
-    expect(manifest.options_page, 'Extension provides a settings page').toBe('options.html');
+    expect(manifest.options_page, 'Extension provides a settings page').toBe('app/options.html');
     const profile = await fs.mkdtemp(path.join(os.tmpdir(), 'copymail-options-'));
     const context = await chromium.launchPersistentContext(profile, {
         channel: 'chromium',
@@ -34,7 +34,7 @@ test('saves website modes, updates open pages and frames, and restores settings'
         const item = options.locator('extensions-item').filter({ hasText: 'CopyEmail' });
         await expect(item).toHaveCount(1);
         const extensionId = await item.getAttribute('id');
-        await options.goto(`chrome-extension://${extensionId}/options.html`);
+        await options.goto(`chrome-extension://${extensionId}/app/options.html`);
         await options.getByRole('tab', { name: 'Websites', exact: true }).click();
         const everywhere = options.getByRole('radio', { name: 'All sites except…', exact: true });
         const nowhere = options.getByRole('radio', { name: 'Only these sites', exact: true });

@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 test('services prepare copy and Maps values without executing actions', () => {
-    const source = fs.readFileSync('extension/services.js', 'utf8');
-    const settings = fs.readFileSync('extension/settings.js', 'utf8');
+    const source = fs.readFileSync('extension/app/services.js', 'utf8');
+    const settings = fs.readFileSync('extension/app/settings.js', 'utf8');
     const services = vm.runInNewContext(`${settings}\n${source}\nnew CopyMailServices.ServiceCollection()`);
     const value = '10 Main Street, Łódź & Warsaw';
     const commands = services.commands({ rule: { builtinType: 'address', enabledActions: ['copy', 'openLink'] }, value });

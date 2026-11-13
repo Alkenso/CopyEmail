@@ -7,7 +7,7 @@ async function load(page, html, settings) {
     await page.route('http://addresses.test/**', route => {
         if (route.request().url().endsWith('/data/cities.txt')) {
             requests++;
-            return route.fulfill({ contentType: 'text/plain', path: path.join(__dirname, '../extension/data/cities.txt') });
+            return route.fulfill({ contentType: 'text/plain', path: path.join(__dirname, '../extension/app/data/cities.txt') });
         }
         return route.fulfill({ contentType: 'text/html; charset=utf-8', body: `<style>body {font:16px/30px Arial; padding:30px}</style>${html}` });
     });
@@ -16,7 +16,7 @@ async function load(page, html, settings) {
         window.chrome = { storage: { local: { get: async () => ({ websiteSettings: value }) }, onChanged: { addListener(listener) { window.updateSettings = newValue => listener({ websiteSettings: { newValue } }, 'local'); } } } };
     }, settings);
     for (const file of ['settings', 'patterns', 'geography', 'scanner', 'services', 'content', 'bootstrap']) {
-        await page.addScriptTag({ path: path.join(__dirname, `../extension/${file}.js`) });
+        await page.addScriptTag({ path: path.join(__dirname, `../extension/app/${file}.js`) });
     }
     return () => requests;
 }
@@ -24,7 +24,7 @@ async function load(page, html, settings) {
 const mapLink = (page, address) => page.getByRole('link', { name: `Open in Google Maps: ${address}`, exact: true });
 
 test('bundled city data is lowercase, sorted, unique and includes translated names', () => {
-    const names = fs.readFileSync(path.join(__dirname, '../extension/data/cities.txt'), 'utf8').trimEnd().split('\n');
+    const names = fs.readFileSync(path.join(__dirname, '../extension/app/data/cities.txt'), 'utf8').trimEnd().split('\n');
     expect(names.length).toBeGreaterThan(100000);
     expect(new Set(names).size).toBe(names.length);
     expect(names.every(name => name === name.toLowerCase())).toBe(true);

@@ -4,16 +4,16 @@
     "version": "1.3.0",
     "description": "Easily copy your account email from Google, Microsoft, and other websites where selecting it is difficult.",
     "icons": {
-        "16": "icons/icon16.png",
-        "32": "icons/icon32.png",
-        "48": "icons/icon48.png",
-        "128": "icons/icon128.png"
+        "16": "app/icons/icon16.png",
+        "32": "app/icons/icon32.png",
+        "48": "app/icons/icon48.png",
+        "128": "app/icons/icon128.png"
     },
     "permissions": [
         "clipboardWrite",
         "storage"
     ],
-    "options_page": "options.html",
+    "options_page": "app/options.html",
     "content_scripts": [
         {
             "matches": [
@@ -22,13 +22,13 @@
                 "file:///*"
             ],
             "js": [
-                "settings.js",
-                "patterns.js",
-                "geography.js",
-                "scanner.js",
-                "services.js",
-                "content.js",
-                "bootstrap.js"
+                "app/settings.js",
+                "app/patterns.js",
+                "app/geography.js",
+                "app/scanner.js",
+                "app/services.js",
+                "app/content.js",
+                "app/bootstrap.js"
             ],
             "run_at": "document_idle",
             "all_frames": true,
@@ -39,7 +39,7 @@
     "web_accessible_resources": [
         {
             "resources": [
-                "data/cities.txt"
+                "app/data/cities.txt"
             ],
             "matches": [
                 "<all_urls>"
@@ -47,7 +47,7 @@
         }
     ],
     "action": {
-        "default_popup": "popup.html",
+        "default_popup": "app/popup.html",
         "default_title": "CopyEmail"
     }
 }

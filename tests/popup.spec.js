@@ -34,7 +34,7 @@ test('popup lists categories and saves action changes immediately', async ({ pag
         const filename = new URL(route.request().url()).pathname.slice(1);
         const types = { 'theme.css': 'text/css', 'popup.html': 'text/html', 'popup.css': 'text/css', 'popup.js': 'text/javascript', 'settings.js': 'text/javascript', 'icons/icon48.png': 'image/png' };
         if (!types[filename]) return route.fulfill({ status: 404, body: '' });
-        await route.fulfill({ contentType: types[filename], body: await fs.readFile(path.join(__dirname, '../extension', filename)) });
+        await route.fulfill({ contentType: types[filename], body: await fs.readFile(path.join(__dirname, '../extension/app', filename)) });
     });
     await page.setViewportSize({ width: 370, height: 585 });
     await page.goto('http://popup.test/popup.html');

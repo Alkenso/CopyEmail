@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const path = require('node:path');
 
-const extensionDirectory = path.join(__dirname, '../extension');
+const extensionDirectory = path.join(__dirname, '../extension/app');
 
 async function loadPageLayer(page, html = '<p>person@example.com</p>') {
     await page.setContent(html);
