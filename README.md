@@ -21,6 +21,8 @@ Selecting an email address manually is awkward, clicking an email link often ope
 
 No build step is required. After updating the extension files, reload CopyEmail and refresh your tabs.
 
+For Safari on macOS 15+ and iOS/iPadOS 18+, see [the Safari project and setup instructions](Safari/README.md).
+
 ## Website settings
 
 Click CopyEmail’s toolbar icon to view categories and toggle their actions. Changes apply immediately. Open the gear button for full settings and custom-rule editing.
@@ -74,26 +76,26 @@ The address rule’s **Copy** and **Maps** checkboxes control their actions inde
 Both on shows Copy then Globe; either can be used alone, and both off hides both.
 Address context lookup remains built in and checks up to five parent levels.
 
-`extension/data/cities.txt` contains 347,334 lowercase, unique, sorted names from
+`extension/app/data/cities.txt` contains 347,334 lowercase, unique, sorted names from
 34,205 GeoNames cities15000 records, including alternate names and translations.
 It loads once per page/frame when an address needs context, and is reused on rescans. Country names are generated
 once per frame using browser translations and kept in a sorted-insertion Set.
-See `extension/data/README.md` for attribution, licensing and regeneration.
+See `extension/app/data/README.md` for attribution, licensing and regeneration.
 
 ## Architecture
 
-The content-script composition root is [`bootstrap.js`](extension/bootstrap.js). It creates
+The content-script composition root is [`bootstrap.js`](extension/app/bootstrap.js). It creates
 `Settings`, injects it and the geography provider into `Scanner`, then passes settings,
 scanner, and services to `PageAugmenter`. The manifest loads these plain scripts in
 dependency order; no module loader or build step is required.
 
 | Component | Responsibility | Dependencies |
 | --- | --- | --- |
-| [`Settings`](extension/settings.js) | Normalize and migrate preferences, persist changes, publish immutable snapshots and revisions | Storage and storage-change events |
-| [`Scanner`](extension/scanner.js) | Traverse text and metadata, compile enabled rules when the settings revision changes, return detections with DOM ranges | Settings, pattern classes, injected geography provider |
-| [`Pattern`](extension/patterns.js) | Match text; resolve the full value after the scanner locates an accepted match | Regex/OR composition; AddressPattern optionally uses geography and a parent pattern |
-| [`ServiceCollection`](extension/services.js) | Convert a detection into Copy or Google Maps commands without executing them | Action and builtin-rule types |
-| [`PageAugmenter`](extension/content.js) | Observe the page, render and position controls, execute clipboard actions, and manage DOM changes | Settings, Scanner, ServiceCollection |
+| [`Settings`](extension/app/settings.js) | Normalize and migrate preferences, persist changes, publish immutable snapshots and revisions | Storage and storage-change events |
+| [`Scanner`](extension/app/scanner.js) | Traverse text and metadata, compile enabled rules when the settings revision changes, return detections with DOM ranges | Settings, pattern classes, injected geography provider |
+| [`Pattern`](extension/app/patterns.js) | Match text; resolve the full value after the scanner locates an accepted match | Regex/OR composition; AddressPattern optionally uses geography and a parent pattern |
+| [`ServiceCollection`](extension/app/services.js) | Convert a detection into Copy or Google Maps commands without executing them | Action and builtin-rule types |
+| [`PageAugmenter`](extension/app/content.js) | Observe the page, render and position controls, execute clipboard actions, and manage DOM changes | Settings, Scanner, ServiceCollection |
 
 Rules contain `id`, `name`, `possibleActions`, `enabledActions`, `builtinType`, and
 `patterns`. A compiled rule keeps the rule, its nonempty enabled-action list, and
