@@ -8,6 +8,18 @@ function modules() {
     return vm.runInNewContext(`${sources}\n({ settings: CopyMailSettings, patterns: CopyMailPatterns, Scanner: CopyMailScanner.Scanner })`);
 }
 
+test('phone matches count digits rather than spaces or punctuation', () => {
+    const { settings, patterns } = modules();
+    const rule = settings.normalize().rules.find(rule => rule.builtinType === 'phone');
+    const pattern = new patterns.OrPattern(rule.patterns.map(source => new patterns.RegexPattern(source)));
+    for (const text of ['5      3', '5......3', '12    34', '123-4567']) {
+        expect(pattern.matches({ text }), text).toHaveLength(0);
+    }
+    for (const text of ['12345678', '+1 (212) 555-0123', '+48 123 456 789', '020 7946 0958', '212.555.0123']) {
+        expect(pattern.matches({ text }).map(match => match.text), text).toEqual([text]);
+    }
+});
+
 const formatExamples = [
     ['US / UK', '123 W Main St Apt 12, Springfield, IL 62704'],
     ['Polish bare street', 'Dubois 9, 00-182, Śródmieście'],

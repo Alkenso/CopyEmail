@@ -40,7 +40,7 @@ const CopyMailSettings = (() => {
     /** @typedef {{ predefined: string|null, isOn: boolean, name: string, regexes: string[], action: string, parentLevels: number, parentRegex: string }} LegacyRule */
     const DEFAULT_PATTERNS = [
         { predefined: 'email', isOn: true, regexes: ["[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,63}\\b"], name: 'Email' },
-        { predefined: 'phone', isOn: false, regexes: [String.raw`\+?\b\d[\d ().-]{6,}\d\b`], name: 'Phone' },
+        { predefined: 'phone', isOn: false, regexes: [String.raw`\+?\b\d(?:[ ().-]*\d){7,}\b`], name: 'Phone' },
         { predefined: 'address', isOn: true, regexes: ADDRESS_REGEXES, name: 'Addresses' }
     ];
 
