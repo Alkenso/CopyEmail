@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="popup.css">
     <link rel="stylesheet" href="theme.css">
     <script src="settings.js" defer></script>
+    <script src="statistics.js" defer></script>
     <script src="popup.js" defer></script>
 </head>
 <body>
@@ -19,7 +20,7 @@
             <div id="rules"></div>
         </div>
         <button class="add-row" id="add-category"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add custom category</button>
-        <footer class="foot"><span><i></i><span id="enabled-count">Loading actions…</span></span><span id="category-count"></span></footer>
+        <footer class="foot"><span id="statistics" aria-live="polite">Copies: week: … · month: … · total: …</span></footer>
         <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
     </main>
 </body>

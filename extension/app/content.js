@@ -1,10 +1,11 @@
 'use strict';
 
 class PageAugmenter {
-    constructor(settings, scanner, services) {
+    constructor(settings, scanner, services, statistics) {
         this.settings = settings;
         this.scanner = scanner;
         this.services = services;
+        this.statistics = statistics;
         this.handleCopyInteraction = this.handleCopyInteraction.bind(this);
         this.handlePointerOver = this.handlePointerOver.bind(this);
         this.handlePointerOut = this.handlePointerOut.bind(this);
@@ -238,6 +239,9 @@ class PageAugmenter {
             link.href = command.value;
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
+            link.addEventListener('click', event => {
+                if (event.isTrusted) this.statistics?.increment(command.action);
+            });
             this.setStatus(link, value, this.Status.MAP);
             link.title = `Open in Google Maps: ${value}`;
             link.setAttribute('aria-label', link.title);
@@ -250,6 +254,7 @@ class PageAugmenter {
         button.setAttribute('aria-label', `Copy ${value}`);
         this.setStatus(button, value, this.Status.COPY);
         this.copyActions.set(button, async () => {
+            this.statistics?.increment(command.action);
             this.clearButtonResetTimer(button);
             let status = this.Status.COPIED;
             try {

@@ -13,6 +13,9 @@
         "clipboardWrite",
         "storage"
     ],
+    "background": {
+        "service_worker": "app/background.js"
+    },
     "options_page": "app/options.html",
     "content_scripts": [
         {
@@ -27,6 +30,7 @@
                 "app/geography.js",
                 "app/scanner.js",
                 "app/services.js",
+                "app/statistics.js",
                 "app/content.js",
                 "app/bootstrap.js"
             ],

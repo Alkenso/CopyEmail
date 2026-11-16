@@ -86,7 +86,7 @@ See `extension/app/data/README.md` for attribution, licensing and regeneration.
 
 The content-script composition root is [`bootstrap.js`](extension/app/bootstrap.js). It creates
 `Settings`, injects it and the geography provider into `Scanner`, then passes settings,
-scanner, and services to `PageAugmenter`. The manifest loads these plain scripts in
+scanner, services, and a statistics message sender to `PageAugmenter`. The manifest loads these plain scripts in
 dependency order; no module loader or build step is required.
 
 | Component | Responsibility | Dependencies |
@@ -95,7 +95,8 @@ dependency order; no module loader or build step is required.
 | [`Scanner`](extension/app/scanner.js) | Traverse text and metadata, compile enabled rules when the settings revision changes, return detections with DOM ranges | Settings, pattern classes, injected geography provider |
 | [`Pattern`](extension/app/patterns.js) | Match text; resolve the full value after the scanner locates an accepted match | Regex/OR composition; AddressPattern optionally uses geography and a parent pattern |
 | [`ServiceCollection`](extension/app/services.js) | Convert a detection into Copy or Google Maps commands without executing them | Action and builtin-rule types |
-| [`PageAugmenter`](extension/app/content.js) | Observe the page, render and position controls, execute clipboard actions, and manage DOM changes | Settings, Scanner, ServiceCollection |
+| [`PageAugmenter`](extension/app/content.js) | Observe the page, render and position controls, execute clipboard actions, and manage DOM changes | Settings, Scanner, ServiceCollection, statistics sender |
+| [`Statistics`](extension/app/statistics.js) | Count clicks per action in UTC daily maps; calculate rolling totals and persist changed counts | Local storage; background message queue |
 
 Rules contain `id`, `name`, `possibleActions`, `enabledActions`, `builtinType`, and
 `patterns`. A compiled rule keeps the rule, its nonempty enabled-action list, and
@@ -114,3 +115,19 @@ owns their observation. Scanner and patterns never modify the page.
 `dispose()` releases its subscriptions, listeners, observers, timers, controls, and
 spacers. Injected dependencies remain owned by the caller. Popup and options views
 use the same Settings model, with mutable editing drafts separate from its snapshots.
+
+
+## Local statistics
+
+The popup footer labels all action clicks as Copies, showing week, month, and total counts. `Statistics`
+provides `week(action?)`, `month(action?)`, `year(action?)`, and `lifetime(action?)`;
+rolling windows cover the latest 7, 30, or 365 UTC days, including today.
+`increment(action)` counts trusted Copy and Maps clicks, including failed copy
+attempts. No copied values or website addresses are recorded.
+
+Each action has an array of nonempty daily maps, keyed by UTC midnight Unix seconds.
+The background worker serializes updates from all tabs and frames and writes the
+updated history directly to local storage after each click. Successfully saved
+counts survive worker suspension and browser restarts. If a write fails, the next
+click retries the accumulated counts while that worker remains alive. Statistics
+stay on this device and are not synced.

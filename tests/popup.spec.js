@@ -26,13 +26,13 @@ test('popup lists categories and saves action changes immediately', async ({ pag
                     }
                 }
             },
-            runtime: { openOptionsPage: async () => {}, getURL: path => `http://popup.test/${path}` },
+            runtime: { sendMessage: async () => ({ week: 12, month: 343, lifetime: 100500 }), openOptionsPage: async () => {}, getURL: path => `http://popup.test/${path}` },
             tabs: { create: async () => {} }
         };
     });
     await page.route('http://popup.test/**', async route => {
         const filename = new URL(route.request().url()).pathname.slice(1);
-        const types = { 'theme.css': 'text/css', 'popup.html': 'text/html', 'popup.css': 'text/css', 'popup.js': 'text/javascript', 'settings.js': 'text/javascript', 'icons/icon48.png': 'image/png' };
+        const types = { 'theme.css': 'text/css', 'popup.html': 'text/html', 'popup.css': 'text/css', 'popup.js': 'text/javascript', 'statistics.js': 'text/javascript', 'settings.js': 'text/javascript', 'icons/icon48.png': 'image/png' };
         if (!types[filename]) return route.fulfill({ status: 404, body: '' });
         await route.fulfill({ contentType: types[filename], body: await fs.readFile(path.join(__dirname, '../extension/app', filename)) });
     });
@@ -40,14 +40,13 @@ test('popup lists categories and saves action changes immediately', async ({ pag
     await page.goto('http://popup.test/popup.html');
     await expect(page.getByRole('heading', { name: 'CopyEmail' })).toBeVisible();
     await expect(page.locator('.item')).toHaveCount(3);
-    await expect(page.getByText('3 actions enabled', { exact: true })).toBeVisible();
+    await expect(page.locator('.foot')).toHaveText('Copies: week: 12 · month: 343 · total: 100500');
 
     await expect(page.getByRole('searchbox')).toHaveCount(0);
 
     const phoneCopy = page.getByRole('checkbox', { name: 'Phone: Copy', exact: true });
     await expect(phoneCopy).not.toBeChecked();
     await phoneCopy.check();
-    await expect(page.getByText('4 actions enabled', { exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('websiteSettings')).rules.find(rule => rule.builtinType === 'phone').enabledActions)).toEqual(['copy']);
     await phoneCopy.click();
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('websiteSettings')).rules.find(rule => rule.builtinType === 'phone').enabledActions)).toEqual([]);
@@ -55,11 +54,9 @@ test('popup lists categories and saves action changes immediately', async ({ pag
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('websiteSettings')).rules.find(rule => rule.builtinType === 'phone').enabledActions)).toEqual(['copy']);
     const maps = page.getByRole('checkbox', { name: 'Addresses: Maps', exact: true });
     await maps.uncheck();
-    await expect(page.getByText('3 actions enabled', { exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('websiteSettings')).rules.find(rule => rule.builtinType === 'address').enabledActions)).toEqual(['copy']);
     const emailCopy = page.getByRole('checkbox', { name: 'Email: Copy', exact: true });
     await emailCopy.uncheck();
-    await expect(page.getByText('2 actions enabled', { exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('websiteSettings')).rules.find(rule => rule.builtinType === 'email').enabledActions)).toEqual([]);
     await page.evaluate(() => { window.failNextStorage = true; });
     await phoneCopy.click();

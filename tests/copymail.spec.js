@@ -16,6 +16,7 @@ async function load(page, html, protocol = 'http') {
         await page.addScriptTag({ path: path.join(__dirname, '../extension/app/geography.js') });
         await page.addScriptTag({ path: path.join(__dirname, '../extension/app/scanner.js') });
         await page.addScriptTag({ path: path.join(__dirname, '../extension/app/services.js') });
+        await page.addScriptTag({ path: path.join(__dirname, '../extension/app/statistics.js') });
         await page.addScriptTag({ path: scriptPath });
         await page.addScriptTag({ path: path.join(__dirname, '../extension/app/bootstrap.js') });
     }

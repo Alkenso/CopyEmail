@@ -1,4 +1,4 @@
-:root { --panel:light-dark(#f5f6f9,#1a2230); --card:light-dark(#fff,#111821); --border:light-dark(#dce0e8,#303b4d); --text:light-dark(#0b101b,#f3f6fb); --muted:light-dark(#53617f,#9aa8bd); --blue:light-dark(#0064ff,#5b93ff); --control-blue:light-dark(#0064ff,#2563eb); --focus:light-dark(#60a5fa,#7cb4ff); --popup-end:light-dark(#fcfcfe,#151d28); --subtle-button:light-dark(#f5f5fa,#202938); --category-text:light-dark(#101827,#e8edf5); --category-start:light-dark(#f6f7f9,#26303e); --category-end:light-dark(#eceef2,#1e2734); --success:light-dark(#16a34a,#39c66d); --notice-border:light-dark(#fecaca,#71343b); --notice-text:light-dark(#991b1b,#ffb4b4); --notice-bg:light-dark(#fff7f7,#2b191d); --notice-shadow:light-dark(#0f172a18,#00000045); --scroll-thumb:light-dark(#c6cbd5,#536176); font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--text); background:var(--card); }
+:root { --panel:light-dark(#f5f6f9,#1a2230); --card:light-dark(#fff,#111821); --border:light-dark(#dce0e8,#303b4d); --text:light-dark(#0b101b,#f3f6fb); --muted:light-dark(#53617f,#9aa8bd); --blue:light-dark(#0064ff,#5b93ff); --control-blue:light-dark(#0064ff,#2563eb); --focus:light-dark(#60a5fa,#7cb4ff); --popup-end:light-dark(#fcfcfe,#151d28); --subtle-button:light-dark(#f5f5fa,#202938); --category-text:light-dark(#101827,#e8edf5); --category-start:light-dark(#f6f7f9,#26303e); --category-end:light-dark(#eceef2,#1e2734); --notice-border:light-dark(#fecaca,#71343b); --notice-text:light-dark(#991b1b,#ffb4b4); --notice-bg:light-dark(#fff7f7,#2b191d); --notice-shadow:light-dark(#0f172a18,#00000045); --scroll-thumb:light-dark(#c6cbd5,#536176); font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--text); background:var(--card); }
 * { box-sizing:border-box; }
 [hidden] { display:none !important; }
 html,body { width:370px; height:585px; margin:0; overflow:hidden; }
@@ -36,8 +36,8 @@ h1 { margin:0; font-size:15px; font-weight:750; letter-spacing:-.25px; }
 .add-row { display:flex; align-items:center; gap:7px; flex-shrink:0; width:100%; padding:12px 15px; border:0; border-top:1px solid var(--border); color:var(--blue); background:transparent; font-size:12px; font-weight:500; text-align:left; }
 .add-row:hover { background:var(--panel); }
 .add-row svg { width:14px; height:14px; }
-.foot { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; padding:12px 15px; border-top:1px solid var(--border); color:var(--muted); font-size:10.5px; }
-.foot i { display:inline-block; width:7px; height:7px; margin-right:6px; border-radius:50%; background:var(--success); }
+.foot { text-align:center; flex-shrink:0; padding:12px 15px; border-top:1px solid var(--border); color:var(--muted); font-size:10.5px; }
+#statistics { font-variant-numeric:tabular-nums; }
 .notice { position:absolute; right:12px; bottom:38px; left:12px; padding:9px 11px; border:1px solid var(--notice-border); border-radius:8px; color:var(--notice-text); background:var(--notice-bg); box-shadow:0 5px 16px var(--notice-shadow); font-size:11px; }
 
 .group-meta { display:flex; align-items:center; gap:10px; }

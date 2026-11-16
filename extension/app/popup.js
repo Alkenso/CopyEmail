@@ -35,7 +35,6 @@
         saving = true;
         const rule = value.rules.find(item => item.id === ruleId);
         rule.enabledActions = enabled ? [...new Set([...rule.enabledActions, action])] : rule.enabledActions.filter(item => item !== action);
-        updateCounts();
         for (const input of document.querySelectorAll('.action input')) input.disabled = true;
         try {
             await settings.save(value);
@@ -43,7 +42,6 @@
             notice.hidden = true;
         } catch {
             value = structuredClone(settings.value);
-            updateCounts();
             notice.textContent = 'Could not save this change. Try again.';
             notice.hidden = false;
         } finally { saving = false; render(); }
@@ -111,13 +109,6 @@
         rulesElement.replaceChildren();
         drawGroup('Built-in', value.rules.filter(rule => rule.builtinType));
         drawGroup('Custom categories', value.rules.filter(rule => !rule.builtinType));
-        updateCounts();
-    }
-
-    function updateCounts() {
-        const enabled = value.rules.reduce((sum, rule) => sum + rule.enabledActions.length, 0);
-        document.querySelector('#enabled-count').textContent = `${enabled} ${enabled === 1 ? 'action' : 'actions'} enabled`;
-        document.querySelector('#category-count').textContent = `${value.rules.length} ${value.rules.length === 1 ? 'category' : 'categories'}`;
     }
 
     function openOptions(hash = '') {
@@ -133,6 +124,26 @@
         window.close();
     });
 
+    async function updateStatistics() {
+        try {
+            const totals = await chrome.runtime.sendMessage({ type: CopyMailStatistics.MessageType.TOTALS });
+            if (!totals || totals.error) throw new Error('Statistics unavailable');
+            document.querySelector('#statistics').textContent = `Copies: week: ${totals.week} · month: ${totals.month} · total: ${totals.lifetime}`;
+        } catch {
+            document.querySelector('#statistics').textContent = 'Statistics unavailable';
+        }
+    }
+
+    function statisticsChanged(changes, area) {
+        if (area === 'local' && Object.hasOwn(changes, CopyMailStatistics.STORAGE_KEY)) {
+            updateStatistics();
+        }
+    }
+
+    chrome.storage.onChanged.addListener(statisticsChanged);
+    const statisticsTimer = setInterval(updateStatistics, 60000);
+    updateStatistics();
+
     async function load() {
         try { await settings.load(); value = structuredClone(settings.value); render(); }
         catch { notice.textContent = 'Could not load settings. Reopen this popup to try again.'; notice.hidden = false; }
@@ -143,6 +154,10 @@
             render();
         }
     });
-    window.addEventListener('pagehide', () => settings.dispose(), { once: true });
+    window.addEventListener('pagehide', () => {
+        settings.dispose();
+        chrome.storage.onChanged.removeListener(statisticsChanged);
+        clearInterval(statisticsTimer);
+    }, { once: true });
     load();
 })();
