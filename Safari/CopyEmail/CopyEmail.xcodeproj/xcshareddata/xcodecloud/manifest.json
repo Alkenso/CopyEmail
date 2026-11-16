@@ -1,0 +1,9 @@
+{
+  "id" : "4d8bc06e-2823-463d-8cf8-dc32f90e2b3f",
+  "targets" : [
+    {
+      "id" : "3220f870-bd64-47b3-bd06-364ad841e099",
+      "name" : "CopyEmail (iOS)"
+    }
+  ]
+}
