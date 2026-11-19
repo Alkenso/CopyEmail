@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="How the CopyEmail browser extension handles page content, clipboard actions, local settings, and Google Maps searches.">
+    <title>Privacy Policy — CopyEmail</title>
+    <link rel="icon" href="assets/copyemail-icon.png" type="image/png">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; color: #11182d; background: #fbfcff; font: 1rem/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        header { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #e2e8f3; }
+        header a { display: flex; align-items: center; gap: 10px; width: fit-content; padding: 12px 0; color: inherit; font-size: 1.25rem; font-weight: 700; text-decoration: none; }
+        .container { width: min(70ch, calc(100% - 40px)); margin-inline: auto; }
+        main { padding: 36px 0 64px; }
+        h1 { margin: 0; font-size: clamp(2rem, 6vw, 3rem); line-height: 1.15; }
+        h2 { margin: 1.5em 0 0; font-size: 1.25rem; }
+        p { margin: .5em 0; }
+        .date { color: #52627a; margin-bottom: 1.5em; }
+        a { color: #075cce; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container"><a href="index.html"><img src="assets/copyemail-icon.png" width="36" height="36" alt="">CopyEmail</a></div>
+    </header>
+    <main class="container">
+        <h1>Privacy Policy</h1>
+        <p class="date">Last updated <time datetime="2026-11-19">November 19, 2026</time></p>
+        <p>This policy covers the CopyEmail browser extension. CopyEmail detects contact details in your browser so you can copy them or open an address in Google Maps. You can use it without an account.</p>
+
+        <h2>Page content and clipboard</h2>
+        <p>On sites where you enable it, CopyEmail examines page text and relevant links for email addresses, phone numbers, street addresses, and text matching your custom rules. It may use nearby city or country names to clarify an address. Recognition takes place on your device, including on local files if you grant access to them.</p>
+        <p>When you select a copy icon, CopyEmail writes the selected value to your system clipboard. It does not read your clipboard, keep a history of copied values, or send page content to the developer.</p>
+
+        <h2>What the extension stores</h2>
+        <p>CopyEmail saves your preferences in your browser profile. These include site lists you enter, enabled actions, custom matching rules, and appearance settings. To show usage totals in the extension popup, it also stores daily counts of copy and map actions. Each count records the day and action type. It contains no copied text, addresses, or page URLs.</p>
+        <p>These records stay in the browser’s local extension storage. CopyEmail does not send them to an analytics service, sell them, or use them for advertising.</p>
+
+        <h2>When you open Google Maps</h2>
+        <p>Selecting the map icon opens Google Maps in a new tab and sends Google the detected address as a search query. The query may include city or country information from the page. You can turn off the Maps action in CopyEmail’s settings and continue copying addresses. Google handles requests to Maps under its <a href="https://policies.google.com/privacy">Privacy Policy</a>.</p>
+
+        <h2>Your choices and data retention</h2>
+        <p>You can change which sites CopyEmail runs on, turn individual actions off, and edit or delete custom rules in the extension settings. Preferences and action counts persist between browser sessions. Removing the extension from Chrome clears its local storage. Your device manages anything already copied to the clipboard.</p>
+
+        <h2>Changes and contact</h2>
+        <p>We will post revisions on this page and update the date above. For privacy questions, use the developer contact information on the <a href="https://chromewebstore.google.com/detail/copyemail/ioahpmiljchobflmcgnmnddfieljgcda">CopyEmail Chrome Web Store listing</a>.</p>
+    </main>
+</body>
+</html>

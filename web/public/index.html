@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8fbff">
+  <meta name="description" content="Your clipboard deserves better. CopyEmail adds one-click Copy and Google Maps shortcuts to websites.">
+  <title>CopyEmail — Your clipboard deserves better</title>
+  <link rel="icon" href="assets/copyemail-icon.png" type="image/png">
+  <style>
+    :root { --ink:#11182d; --body:#344461; --blue:#0768f9; --line:#d4e1f8; --bg:#fbfcff; --lighter:#e6f1ff; --soft:#f0f6ff; --shadow:0 4px 8px #203f6f13; font-synthesis:none; }
+    *,*::before,*::after{box-sizing:border-box}
+    html{scroll-behavior:smooth;scroll-padding-top:65px}
+    body{margin:0;background:radial-gradient(ellipse at 65% 8%,#eef5ff 0%,transparent 35%),linear-gradient(#fafcff,#fff);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+    button{font:inherit;cursor:pointer}
+    button:focus-visible,a:focus-visible{outline:3px solid #82b6ff;outline-offset:3px}
+    .container{width:min(1130px,calc(100% - 68px));margin:0 auto}
+    .site-header{position:sticky;top:0;z-index:5;border-bottom:1px solid #e8edf6;background:#fff}
+    .header-inner{height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-inline:10px}
+    .identity{display:flex;align-items:center;gap:12px;font-size:24px;letter-spacing:-.7px;font-weight:800}
+    .identity img{width:43px;height:43px;object-fit:cover;border-radius:10px}
+    .languages{display:flex;border:1px solid #d9e4f5;border-radius:12px;padding:3px;background:#f5f8fd;gap:2px}
+    .languages button{border:0;background:transparent;border-radius:9px;color:#293955;font-size:13px;font-weight:700;padding:9px 14px;min-width:42px}
+    .languages button[aria-pressed="true"]{background:var(--blue);color:white;box-shadow:0 2px 4px #084fac40}
+    .hero{min-height:267px;display:grid;grid-template-columns:minmax(0,1.58fr) minmax(280px,.95fr);align-items:center;column-gap:10px;padding:28px 10px 5px}
+    .hero-text{position:relative;z-index:1}
+    .hero h1{font-size:clamp(34px,3.7vw,47px);font-weight:830;line-height:1.125;letter-spacing:-1.75px;max-width:660px;margin:0 0 21px}
+    .underline{position:relative;white-space:nowrap}
+    .underline:after{content:"";position:absolute;left:0;right:0;bottom:-6px;border-bottom:3px solid #137afa;border-radius:100%;transform:rotate(-1deg)}
+    .hero p{font-size:clamp(16px,1.96vw,20px);line-height:1.43;color:var(--body);max-width:680px;margin:0}
+    .hero-illustration{width:100%;max-width:382px;align-self:center;justify-self:end;display:block}
+    .store-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin:9px 0 43px}
+    .store{display:flex;align-items:center;gap:13px;min-height:61px;border:1px solid #d6e1f1;border-radius:16px;padding:11px 15px;background:#fff;box-shadow:0 3px 6px #1b46811b;transition:transform .15s,box-shadow .15s}
+    .store:hover{transform:translateY(-2px);box-shadow:0 7px 15px #1b46811c}
+    .store-icon{width:45px;height:45px;flex:none;display:grid;place-items:center}
+    .chrome-icon{width:39px;height:39px;margin:3px;background:conic-gradient(#f2c332 0 115deg,#25a65d 115deg 237deg,#ef4135 237deg 360deg);border-radius:50%;position:relative}
+    .chrome-icon:after{content:"";display:block;position:absolute;width:22px;height:22px;border-radius:50%;background:#1687eb;border:2px solid white;inset:0;margin:auto}
+    .safari-icon{width:40px;height:40px}
+    .device-icon{display:grid;place-items:center;color:#161e31}
+    .device-icon svg{width:42px;height:42px;fill:none;stroke:currentColor;stroke-width:1.7}
+    .store-text{flex:1;min-width:0;line-height:1.12}
+    .store-caption{display:block;color:#334460;font-size:13px}
+    .store-name{display:block;font-weight:800;font-size:16px;letter-spacing:-.35px;line-height:1.2}
+    .arrow{font-size:26px;font-weight:400;line-height:1;margin-left:auto}
+    .store[data-coming]{cursor:default}
+    .store[data-coming] .store-caption{color:#626b78;margin-top:3px}
+    .store[data-coming]:hover{transform:none;box-shadow:0 3px 6px #1b46811b}
+    .section-lead{padding:0 12px;margin:0 0 17px}
+    .section-lead h2{font-size:clamp(33px,4vw,46px);line-height:1.11;letter-spacing:-1.9px;font-weight:830;margin:0 0 7px}
+    .burst{display:inline-block;color:var(--blue);font-size:.74em;font-weight:400;vertical-align:top;transform:rotate(-20deg);margin-left:14px}
+    .section-lead p{font-size:16px;color:var(--body);margin:0;line-height:1.45}
+    .cases{display:flex;flex-direction:column;gap:11px}
+    .case{border:1px solid #c9daf9;border-radius:21px;background:#ffffffbd;box-shadow:0 1px 3px #1f56a00a;min-width:0}
+    .case-head{display:flex;align-items:center;gap:16px;padding:14px 17px 9px}
+    .case-icon{display:grid;place-items:center;width:56px;height:56px;border-radius:17px;background:#e4f0ff;flex:none;color:#0872ff}
+    .case-icon svg{width:33px;height:33px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+    .case-head h3{font-size:22px;letter-spacing:-.65px;margin:0 0 5px;font-weight:800;line-height:1.13}
+    .case-head p{margin:0;color:#384b6b;font-size:16px;line-height:1.4}
+    .screenshots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;padding:6px 20px 17px}
+    .screenshots img{display:block;width:100%;height:auto;border-radius:13px;box-shadow:0 4px 7px #1737591b}
+    .phone-case{display:block;padding:0 19px 16px}
+    .phone-case .case-head{padding:15px 0 8px}
+    .phone-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:20px;padding:8px 2px 0}
+    .phone-gallery img{display:block;width:100%;height:auto;border-radius:13px;box-shadow:0 4px 7px #1737591b}
+    .address-case{padding:0 20px 16px}
+    .address-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:12px}
+    .address-top .case-head{padding:0;min-width:0}
+    .globe-note{flex:none;display:flex;align-items:center;gap:10px;background:#e1eeff;color:#003b9d;border-radius:12px;padding:10px 15px;font-size:14px;line-height:1.18;max-width:360px}
+    .globe-note svg{width:24px;height:24px;fill:none;stroke:var(--blue);stroke-width:1.9;flex:none}
+    .addresses{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;padding:12px 2px 0}
+    .addresses img{display:block;width:100%;height:auto;border-radius:14px;box-shadow:0 4px 7px #1737591b}
+    .benefits{margin:27px 0 17px;background:#eaf3ff;border-radius:18px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:13px 19px;gap:16px}
+    .benefit{display:flex;gap:14px;align-items:center;min-width:0;position:relative}
+    .benefit:not(:first-child):before{content:"";position:absolute;left:-9px;height:52px;width:1px;background:#adc9f2}
+    .benefit-icon{width:49px;height:49px;flex:none;border-radius:15px;background:#dcecff;color:var(--blue);display:grid;place-items:center}
+    .benefit-icon svg{width:29px;height:29px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+    .benefit strong{display:block;font-size:15px;font-weight:790;letter-spacing:-.3px;line-height:1.28}
+    .benefit p{font-size:12px;line-height:1.35;margin:4px 0 0;color:#334362}
+    .footer{border-top:1px solid #e2e8f3;background:#fff9}
+    .footer-inner{display:flex;align-items:center;gap:35px;min-height:69px;padding-inline:10px}
+    .footer-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.3px;padding-right:33px;border-right:1px solid #bfd2ed}
+    .footer-brand img{width:35px;height:35px;border-radius:9px}
+    .footer nav{display:flex;align-items:center;gap:31px;color:#314461;font-size:12px}
+    .footer a:hover{color:#066af6}
+    .toast{position:fixed;bottom:23px;left:50%;transform:translate(-50%,18px);opacity:0;pointer-events:none;z-index:99;background:#14233e;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;transition:.2s}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    @media(min-width:1200px){.hero h1{font-size:46px}.hero p{font-size:20px}.hero{min-height:298px}.screenshots{gap:23px}}
+    @media(max-width:800px){.container{width:calc(100% - 36px)}.hero{grid-template-columns:1.5fr .8fr;padding-inline:0;min-height:235px}.hero h1{font-size:clamp(28px,4.3vw,36px);letter-spacing:-1.3px}.hero p{font-size:15px}.hero-illustration{max-width:275px}.store-row{gap:10px}.store{padding:10px;gap:8px}.store-icon{width:32px;height:32px}.chrome-icon{width:29px;height:29px}.chrome-icon:after{width:17px;height:17px}.safari-icon{width:30px;height:30px}.device-icon svg{width:32px}.store-name{font-size:13px}.store-caption{font-size:11px}.arrow{font-size:20px}.screenshots,.addresses{gap:10px}.case-head h3{font-size:19px}.case-head p{font-size:13px}.globe-note{max-width:250px;font-size:12px}.benefits{gap:12px}.benefit p{font-size:11px}.benefit-icon{width:41px;height:41px}.footer-inner{gap:18px}.footer nav{gap:15px}}
+    @media(max-width:600px){.container{width:calc(100% - 28px)}.header-inner{padding:8px 0;min-height:63px;height:auto;flex-wrap:wrap;row-gap:6px}.identity{gap:7px;font-size:18px}.identity img{width:34px;height:34px}.languages button{padding:7px 9px;min-width:0;font-size:11px}.hero{padding:25px 2px 10px;grid-template-columns:1fr;gap:5px}.hero h1{font-size:clamp(31px,7.7vw,42px);max-width:520px;margin-bottom:16px;letter-spacing:-1.5px}.hero p{font-size:16px}.hero-illustration{max-width:305px;justify-self:center;margin-top:6px}.store-row{grid-template-columns:1fr;gap:10px;margin:15px 0 34px}.store{min-height:65px;padding:10px 17px}.store-icon{width:43px;height:43px}.chrome-icon{width:36px;height:36px}.chrome-icon:after{width:20px;height:20px}.safari-icon{width:37px;height:37px}.device-icon svg{width:39px}.store-caption{font-size:12px}.store-name{font-size:15px}.section-lead{padding:0 4px;margin-bottom:18px}.section-lead h2{font-size:35px;letter-spacing:-1.5px}.section-lead p{font-size:14px}.case-head{padding:15px 15px 9px;gap:11px;align-items:flex-start}.case-icon{width:47px;height:47px;border-radius:13px}.case-icon svg{width:27px;height:27px}.case-head h3{font-size:19px}.case-head p{font-size:13px}.screenshots{grid-template-columns:1fr;gap:13px;padding:6px 15px 15px}.screenshots img{max-width:370px;margin:auto}.phone-case{padding:0 15px 15px}.phone-case .case-head{padding:15px 0 8px}.phone-gallery{grid-template-columns:1fr;gap:13px;padding:5px 0}.phone-gallery img{max-width:470px;margin:auto}.address-case{padding:0 15px 15px}.address-top{display:block}.address-top .case-head{padding:15px 0 8px}.globe-note{max-width:calc(100% - 60px);width:max-content;font-size:12px;margin:0 0 4px 60px}.addresses{grid-template-columns:1fr;padding:8px 0 0;gap:13px}.addresses img{max-width:370px;margin:auto}.benefits{grid-template-columns:1fr;gap:20px;padding:20px;margin-top:23px}.benefit:not(:first-child):before{display:none}.benefit strong{font-size:15px}.benefit p{font-size:12px}.footer-inner{min-height:90px;flex-wrap:wrap;justify-content:center;gap:12px;padding:17px 0}.footer-brand{padding:0 12px 0 0;font-size:15px}.footer-brand img{width:28px;height:28px}.footer nav{gap:12px;flex-wrap:wrap;justify-content:center;font-size:11px}}
+    @media(max-width:360px){.languages button{padding:7px 6px}.identity{font-size:16px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto};*{transition:none!important}}
+  </style>
+</head>
+<body id="top">
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" style="position:absolute;overflow:hidden">
+  <defs>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="15" rx="2"/><path d="m3 7 9 7 9-7"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M7 3H4.8C3.3 3 2.5 4.4 2.7 5.8c1.2 8 7.5 14.3 15.5 15.5 1.4.2 2.8-.6 2.8-2.1V17l-5.3-2.4-2.2 2.1c-3-1.4-5.5-4-7-7l2.1-2.3L7 3Z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c-5.5 5.5-5.5 13.5 0 19M12 2.5c5.5 5.5 5.5 13.5 0 19"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 13h7l-1 9 10-13h-7l0-7Z"/></symbol>
+    <symbol id="i-stack" viewBox="0 0 24 24"><path d="m12 2 10 6-10 6L2 8l10-6Zm-10 11 10 6 10-6M2 17l10 5 10-5"/></symbol>
+  </defs>
+</svg>
+<header class="site-header"><div class="container header-inner">
+  <a class="identity" href="#top"><img src="assets/copyemail-icon.png" alt="" width="43" height="43"><span>CopyEmail</span></a>
+  <div class="languages" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="ru" aria-pressed="false">RU</button><button type="button" data-lang="uk" aria-pressed="false">UA</button></div>
+</div></header>
+<main class="container">
+  <section class="hero" aria-label="Introduction">
+    <div class="hero-text"><h1 data-t="heroTitle">We live in 2026. AI chats with us. Cars fly. And yet copying data from website is <span class="underline">still tricky</span> 🫠</h1><p data-t="heroLead">CopyEmail helps instantly copy emails, phone numbers, addresses, and open locations in maps right from the page.</p></div>
+    <img class="hero-illustration" src="assets/hero-illustration.png" alt="Illustration of one-click copy buttons beside email, phone and address fields">
+  </section>
+  <section class="store-row" id="install" aria-label="Install extension">
+    <a class="store" href="https://chromewebstore.google.com/detail/copyemail/ioahpmiljchobflmcgnmnddfieljgcda" target="_blank" rel="noopener noreferrer"><span class="store-icon"><span class="chrome-icon" aria-hidden="true"></span></span><span class="store-text"><span class="store-caption" data-t="installFrom">Install from</span><strong class="store-name">Chrome Web Store</strong></span><span class="arrow" aria-hidden="true">→</span></a>
+    <a class="store" data-safari="mac" data-coming="true" href="#install"><span class="store-icon"><img class="safari-icon" src="assets/safari-logo.png" width="248" height="248" alt=""></span><span class="store-text"><strong class="store-name" data-t="safariMac">Safari for Mac</strong><span class="store-caption" data-t="inDevelopment">In development...</span></span></a>
+    <a class="store" data-safari="ios" data-coming="true" href="#install"><span class="store-icon device-icon"><svg viewBox="0 0 45 45" aria-hidden="true"><rect x="5" y="4" width="24" height="34" rx="3"/><path d="M13 33h9"/><rect x="25" y="15" width="16" height="27" rx="3"/><path d="M31 38h4"/></svg></span><span class="store-text"><strong class="store-name" data-t="safariIOS">Safari for iPhone &amp; iPad</strong><span class="store-caption" data-t="inDevelopment">In development...</span></span></a>
+  </section>
+  <section class="section-lead" id="cases"><h2><span data-t="casesTitle">Your clipboard deserves better</span><span class="burst" aria-hidden="true">✳</span></h2><p data-t="casesLead">Copy what you need, not what you don't. A few real-life examples (because seeing is copying).</p></section>
+  <div class="cases">
+    <section class="case" aria-labelledby="email-title">
+      <div class="case-head"><span class="case-icon"><svg viewBox="0 0 24 24"><use href="#i-mail"/></svg></span><div><h3 id="email-title" data-t="emailsTitle">Emails from Google, Microsoft and any other website</h3><p data-t="emailsLead">Copy email addresses from your favorite websites in one click.</p></div></div>
+      <div class="screenshots"><img src="assets/example-google.png" width="1448" height="1086" alt="Account chooser with the copy button beside an email address highlighted"><img src="assets/example-microsoft.png" width="1448" height="1086" alt="Microsoft account panel with the email copy button highlighted"><img src="assets/example-website.png" width="1448" height="1086" alt="Contact Us page with the copy button beside the support email highlighted"></div>
+    </section>
+    <section class="case phone-case" aria-labelledby="phone-title">
+      <div class="case-head"><span class="case-icon"><svg viewBox="0 0 24 24"><use href="#i-phone"/></svg></span><div><h3 id="phone-title" data-t="phonesTitle">Phone numbers</h3><p data-t="phonesLead">Copy phone numbers from contact, support, and business pages without retyping.</p></div></div>
+      <div class="phone-gallery">
+        <img src="assets/example-phones.png" width="1448" height="1086" alt="Contact Support phone list with the first number’s copy button highlighted">
+        <img src="assets/example-phones-2.png" width="1448" height="1086" alt="Sales &amp; Inquiries phone list with the EU number’s copy button highlighted">
+      </div>
+    </section>
+    <section class="case address-case" aria-labelledby="address-title">
+      <div class="address-top"><div class="case-head"><span class="case-icon"><svg viewBox="0 0 24 24"><use href="#i-pin"/></svg></span><div><h3 id="address-title" data-t="mapsTitle">Addresses as direct Google Maps link</h3><p data-t="mapsLead">Copy addresses and open locations in Google Maps with a single click.</p></div></div><div class="globe-note"><svg viewBox="0 0 24 24"><use href="#i-globe"/></svg><span data-t="globeNote">Globe icon = direct Google Maps link.</span></div></div>
+      <div class="addresses"><img src="assets/example-store-plaza.png" width="1448" height="1086" alt="Example Plaza address card with Copy and Open in Maps controls highlighted"><img src="assets/example-store-creek.png" width="1448" height="1086" alt="Example Creek address card with Copy and Open in Maps controls highlighted"><img src="assets/example-store-center.png" width="1448" height="1086" alt="Example Center address card with Copy and Open in Maps controls highlighted"></div>
+    </section>
+  </div>
+  <section class="benefits" id="features" aria-label="Features">
+    <div class="benefit"><span class="benefit-icon"><svg viewBox="0 0 24 24"><use href="#i-bolt"/></svg></span><div><strong data-t="saveTitle">Save time</strong><p data-t="saveLead">Copy what you need in a click instead of selecting and retyping.</p></div></div>
+    <div class="benefit"><span class="benefit-icon"><svg viewBox="0 0 24 24"><use href="#i-stack"/></svg></span><div><strong data-t="manualTitle">Reduce manual work</strong><p data-t="manualLead">Handle repetitive copy–paste tasks effortlessly.</p></div></div>
+    <div class="benefit"><span class="benefit-icon"><svg viewBox="0 0 24 24"><use href="#i-globe"/></svg></span><div><strong data-t="anywhereTitle">Work anywhere on the web</strong><p data-t="anywhereLead">Emails, phones, addresses, locations — CopyEmail works where you do.</p></div></div>
+  </section>
+</main>
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand"><img src="assets/copyemail-icon.png" alt=""><span>CopyEmail</span></div>
+    <nav aria-label="Footer navigation"><a href="privacy.html" data-t="privacy">Privacy</a></nav>
+  </div>
+</footer>
+<div class="toast" role="status" aria-live="polite" id="toast"></div>
+<script>
+'use strict';
+// Replace null values with published Safari App Store links when available.
+const STORE_LINKS={chrome:'https://chromewebstore.google.com/detail/copyemail/ioahpmiljchobflmcgnmnddfieljgcda',safariMac:null,safariIOS:null};
+const currentYear = new Date().getFullYear();
+const i18n={
+ en:{install:'Install',heroTitle:`We live in ${currentYear}. AI chats with us. Cars fly. And yet copying data from website is <span class="underline">still tricky</span> 🫠`,heroLead:'CopyEmail helps instantly copy emails, phone numbers, addresses, and open locations in maps right from the page.',installFrom:'Install from',inDevelopment:'In development...',safariMac:'Safari for Mac',safariIOS:'Safari for iPhone & iPad',casesTitle:'Your clipboard deserves better',casesLead:"Copy what you need, not what you don't. A few real-life examples (because seeing is copying).",emailsTitle:'Emails from Google, Microsoft and any other website',emailsLead:'Copy email addresses from your favorite websites in one click.',phonesTitle:'Phone numbers',phonesLead:'Copy phone numbers from contact, support, and business pages without retyping.',mapsTitle:'Addresses as direct Google Maps link',mapsLead:'Copy addresses and open locations in Google Maps with a single click.',globeNote:'Globe icon = direct Google Maps link.',saveTitle:'Save time',saveLead:'Copy what you need in a click instead of selecting and retyping.',manualTitle:'Reduce manual work',manualLead:'Handle repetitive copy–paste tasks effortlessly.',anywhereTitle:'Work anywhere on the web',anywhereLead:'Emails, phones, addresses, locations — CopyEmail works where you do.',privacy:'Privacy',soon:'Safari version is coming soon.'},
+ ru:{install:'Установить',heroTitle:`На дворе ${currentYear} год. ИИ общается с нами. Машины летают. А копировать данные с сайта <span class="underline">всё ещё сложно</span> 🫠`,heroLead:'CopyEmail помогает одним нажатием копировать email, телефоны, адреса и открывать места на карте прямо со страницы.',installFrom:'Установить из',inDevelopment:'В разработке...',safariMac:'Safari для Mac',safariIOS:'Safari для iPhone и iPad',casesTitle:'Ваш буфер обмена заслуживает лучшего',casesLead:'Копируйте то, что нужно, а не всё подряд. Несколько примеров из жизни — лучше один раз увидеть.',emailsTitle:'Email из Google, Microsoft и любых других сайтов',emailsLead:'Копируйте адреса почты на любимых сайтах одним кликом.',phonesTitle:'Телефонные номера',phonesLead:'Копируйте телефоны со страниц контактов, поддержки и компаний без ручного набора.',mapsTitle:'Адреса с прямой ссылкой на Google Maps',mapsLead:'Копируйте адреса и открывайте места в Google Maps одним кликом.',globeNote:'Иконка глобуса — прямая ссылка на Google Maps.',saveTitle:'Экономьте время',saveLead:'Один клик вместо выделения и ручного копирования.',manualTitle:'Меньше рутины',manualLead:'Повторяющиеся операции копирования больше не отнимают время.',anywhereTitle:'Работает на любых сайтах',anywhereLead:'Почта, телефоны, адреса и локации — там, где вы работаете.',privacy:'Конфиденциальность',soon:'Версия для Safari скоро появится.'},
+ uk:{install:'Встановити',heroTitle:`Надворі ${currentYear} рік. ШІ спілкується з нами. Машини літають. А копіювати дані із сайту <span class="underline">досі складно</span> 🫠`,heroLead:'CopyEmail допомагає одним натисканням копіювати email, телефони, адреси та відкривати місця на карті просто зі сторінки.',installFrom:'Встановити з',inDevelopment:'У розробці...',safariMac:'Safari для Mac',safariIOS:'Safari для iPhone та iPad',casesTitle:'Ваш буфер обміну заслуговує на краще',casesLead:'Копіюйте те, що потрібно, а не все підряд. Кілька прикладів із життя — краще один раз побачити.',emailsTitle:'Email із Google, Microsoft та будь-яких інших сайтів',emailsLead:'Копіюйте електронні адреси з улюблених сайтів одним кліком.',phonesTitle:'Номери телефонів',phonesLead:'Копіюйте телефони зі сторінок контактів, підтримки й компаній без ручного введення.',mapsTitle:'Адреси з прямим посиланням на Google Maps',mapsLead:'Копіюйте адреси та відкривайте місця в Google Maps одним кліком.',globeNote:'Іконка глобуса — пряме посилання на Google Maps.',saveTitle:'Заощаджуйте час',saveLead:'Одне натискання замість виділення та ручного копіювання.',manualTitle:'Менше рутини',manualLead:'Повторювані операції копіювання більше не відбирають час.',anywhereTitle:'Працює на будь-яких сайтах',anywhereLead:'Пошта, телефони, адреси та локації — усюди, де ви працюєте.',privacy:'Конфіденційність',soon:'Версія для Safari незабаром з’явиться.'}
+};
+let language='en';let toastTimeout;
+function toast(message){const element=document.getElementById('toast');element.textContent=message;element.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>element.classList.remove('show'),2200)}
+function setLanguage(lang){language=i18n[lang]?lang:'en';document.documentElement.lang=language;document.querySelectorAll('[data-t]').forEach(el=>{el.innerHTML=i18n[language][el.dataset.t]});document.querySelectorAll('[data-lang]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.lang===language)));document.title='CopyEmail — '+i18n[language].casesTitle;}
+document.querySelectorAll('[data-lang]').forEach(btn=>btn.addEventListener('click',()=>setLanguage(btn.dataset.lang)));
+document.querySelectorAll('[data-safari]').forEach(link=>{const url=link.dataset.safari==='mac'?STORE_LINKS.safariMac:STORE_LINKS.safariIOS;if(url){link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.removeAttribute('data-coming');link.querySelector('.store-caption').dataset.t='install'}else{link.addEventListener('click',event=>{event.preventDefault();toast(i18n[language].soon)})}});
+setLanguage('en');
+</script>
+</body>
+</html>
