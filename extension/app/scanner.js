@@ -3,7 +3,8 @@ const CopyMailScanner = (() => {
 
     const { BuiltinRuleType } = CopyMailSettings;
     const SKIPPED = 'script,style,noscript,template,textarea,input,select,option,svg,canvas';
-    const METADATA = '[href^="mailto:" i],[title],[aria-label],[data-email]';
+    const PHONE_LINK = 'a[href^="tel:" i]';
+    const METADATA = `[href^="mailto:" i],${PHONE_LINK},[title],[aria-label],[data-email]`;
 
     class Location {
         constructor(element, range) {
@@ -81,15 +82,17 @@ const CopyMailScanner = (() => {
             this.collectMetadata(root, detections, context, metadataElements);
             let text = '';
             let segments = [];
+            let lineBreaks = [];
 
             const flush = () => {
                 if (!text || !segments.length) {
                     text = '';
                     segments = [];
+                    lineBreaks = [];
                     return;
                 }
                 const input = { text, segments };
-                const accepted = this.ruleMatches(input);
+                const accepted = this.ruleMatches(input, lineBreaks);
                 accepted.sort((left, right) => left.finding.index - right.finding.index);
                 for (const item of accepted) {
                     const start = item.finding.index;
@@ -107,6 +110,7 @@ const CopyMailScanner = (() => {
                 }
                 text = '';
                 segments = [];
+                lineBreaks = [];
             };
 
             const visit = node => {
@@ -122,8 +126,13 @@ const CopyMailScanner = (() => {
                     flush();
                     return;
                 }
+                if (node.nodeName === 'BR') {
+                    lineBreaks.push(text.length);
+                    text += '\n';
+                    return;
+                }
                 const display = node.nodeType === Node.ELEMENT_NODE ? getComputedStyle(node).display : '';
-                const boundary = node.nodeName === 'BR' || (display && display !== 'inline' && display !== 'contents');
+                const boundary = display && display !== 'inline' && display !== 'contents';
                 if (boundary) flush();
                 if (node.shadowRoot) {
                     flush();
@@ -141,11 +150,11 @@ const CopyMailScanner = (() => {
         collectMetadata(root, detections, context, metadataElements) {
             for (const element of root.querySelectorAll(METADATA)) {
                 if (this.isSkipped(element, context) || element.closest(SKIPPED) || element.isContentEditable) continue;
-                const match = this.metadataFinding(element);
+                const linkedPhone = element.matches(PHONE_LINK) && this.shortPhoneLinkFinding(element.textContent.trim());
+                const match = linkedPhone || this.metadataFinding(element);
                 if (!match) continue;
                 const rawValue = match.finding.value;
-                const label = element.textContent.trim();
-                if (!this.shortenedLabelMatches(label, rawValue)) continue;
+                if (!linkedPhone && !this.shortenedLabelMatches(element.textContent.trim(), rawValue)) continue;
                 if ([...element.querySelectorAll(METADATA)]
                     .some(child => this.shortenedLabelMatches(child.textContent.trim(), rawValue))) continue;
                 const range = (root.ownerDocument || root).createRange();
@@ -155,6 +164,14 @@ const CopyMailScanner = (() => {
                 detections.push(new Detection(new Location(element, range), match.compiled.rule, value));
                 metadataElements.add(element);
             }
+        }
+
+        shortPhoneLinkFinding(label) {
+            // Keep existing text matches and their priority. A tel link supplies context for a short number.
+            const compiled = this.compiledRules.find(item => item.rule.builtinType === BuiltinRuleType.PHONE);
+            if (!compiled || this.ruleMatches({ text: label }).length) return null;
+            const finding = compiled.pattern.matches({ text: `tel:${label}` }).find(item => item.value === label);
+            return finding ? { compiled, finding } : null;
         }
 
         metadataFinding(element) {
@@ -175,13 +192,24 @@ const CopyMailScanner = (() => {
             return null;
         }
 
-        ruleMatches(input) {
+        ruleMatches(input, lineBreaks = []) {
             const accepted = [];
+            // Only postal addresses can continue across a BR. Other rules keep their line boundaries.
+            let start = 0;
+            const lines = lineBreaks.length ? [...lineBreaks, input.text.length].map(end => {
+                const line = { text: input.text.slice(start, end), start };
+                start = end + 1;
+                return line;
+            }) : [input];
             for (const compiled of this.compiledRules) {
-                for (const finding of compiled.pattern.matches(input)) {
-                    if (!accepted.some(item => finding.index < item.finding.index + item.finding.text.length &&
-                        item.finding.index < finding.index + finding.text.length)) {
-                        accepted.push({ finding, compiled });
+                const parts = compiled.rule.builtinType === BuiltinRuleType.ADDRESS ? [input] : lines;
+                for (const part of parts) {
+                    for (const finding of compiled.pattern.matches(part)) {
+                        finding.index += part.start ?? 0;
+                        if (!accepted.some(item => finding.index < item.finding.index + item.finding.text.length &&
+                            item.finding.index < finding.index + finding.text.length)) {
+                            accepted.push({ finding, compiled });
+                        }
                     }
                 }
             }

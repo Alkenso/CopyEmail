@@ -8,6 +8,7 @@
         "check": "node -e \"const fs=require('node:fs'),cp=require('node:child_process');for(const file of fs.readdirSync('extension/app').filter(f=>f.endsWith('.js')))cp.execFileSync(process.execPath,['--check','extension/app/'+file],{stdio:'inherit'});\""
     },
     "devDependencies": {
-        "@playwright/test": "1.64.1"
+        "@playwright/test": "1.64.1",
+        "google-libphonenumber": "3.2.48"
     }
 }

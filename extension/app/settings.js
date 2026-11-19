@@ -9,14 +9,17 @@ const CopyMailSettings = (() => {
 
     // Ten format families, not a worldwide popularity ranking. See docs/address-formats.md.
     const word = String.raw`[\p{L}\p{M}][\p{L}\p{M}\d.'’\-]*`;
-    const street = `${word}(?:[ \\t]+${word}){0,8}`;
+    const streetName = token => `${token}(?:[ \\t]+${token}){0,8}`;
+    const street = streetName(word);
+    const usStreet = streetName(String.raw`(?:${word}|\d{1,4}(?:st|nd|rd|th))`);
+    const usLocality = String.raw`${street},[ \t]*[a-z]{2}[ \t]+\d{5}(?:-\d{4})?`;
     const number = String.raw`\d{1,6}[a-z]?(?:[/-](?:\d{1,6}[a-z]?|[a-z]{1,3}))?(?:[ \t]+\d/\d)?`;
     const suffix = String.raw`(?:street|st|road|rd|avenue|ave|lane|ln|drive|dr|boulevard|blvd|court|ct|way|place|pl|terrace|ter|parkway|pkwy|highway|hwy|circle|cir|square|sq|crescent|close)`;
     const tail = String.raw`(?:,[ \t]*[\p{L}\p{M}\d][\p{L}\p{M}\d .’'()/#\-]{0,79}){0,4}`;
     const bounded = source => String.raw`(?<![\p{L}\p{M}\d])(?:${source})(?![\p{L}\p{M}\d])`;
     const ADDRESS_REGEXES = [
         // 1. US/UK: building number, named street and street type, optional unit/locality.
-        bounded(`(?:no\\.?[ \\t]+)?${number}[ \\t]+${street}[ \\t]+${suffix}\\.?(?:[ \\t]+(?:apt\\.?|suite|ste\\.?|unit|#)[ \\t]*${number})?${tail}`),
+        bounded(`(?:no\\.?[ \\t]+)?${number}[ \\t]+${usStreet}[ \\t]+${suffix}\\.?(?:[ \\t]+(?:apt\\.?|suite|ste\\.?|unit|#)[ \\t]*${number})?(?:,?\\s+${usLocality})?${tail}`),
         // 2. Poland: bare street name + building number + postal code (including comma before district).
         bounded(`${street}[ \\t]+${number},?[ \\t]+\\d{2}-\\d{3}(?:[ \\t]+${street})?${tail}`),
         // 3. Poland: explicit street type, with or without postcode/locality.
@@ -37,10 +40,40 @@ const CopyMailSettings = (() => {
         bounded(`(?:block[ \\t]+|blk[ \\t]+|no\\.?[ \\t]*)?${number}[ \\t]+${street}(?:[ \\t]+\\d{1,4})?(?:,[ \\t]*(?:${street}|#\\d{1,3}-\\d{1,4})){0,3}[ ,\\t-]+\\d{6}`)
     ];
 
+    const digit = String.raw`\p{Nd}`;
+    const space = String.raw`[\p{Zs}\t]`;
+    const areaParen = String.raw`[(（](?=${digit}(?:[\p{Pd}\p{Zs}]?${digit}){0,5}[)）])`;
+    const afterPrefix = String.raw`(?<=(?<!${digit})${digit}{1,3})${space}{0,2}${areaParen}`;
+    const gap = String.raw`(?:${afterPrefix}|[)）]${space}{0,2}(?:${areaParen})?|${space}{0,2}[\p{Pd}.．−ー]${space}{0,2}|${space}{1,2})?`;
+    const phoneDigits = (min, max) => String.raw`${digit}(?:${gap}${digit}){${min - 1},${max - 1}}`;
+    const extension = String.raw`(?:${space}{0,3}(?:;ext=|ext(?:ensi[oó]n|n)?[.:]?|poste|wew\.?|доб\.?|x|#)${space}{0,2}${digit}{1,8})?`;
+    const phoneLabel = String.raw`(?<=(?:\b(?:tel(?:ephone)?|tél(?:éphone)?|teléfono|telefone|telefon|phone|mobile|fax|call)|тел\.?|電話|电话|هاتف|[📞☎][\uFE0E\uFE0F]?)\.?[:：]?${space}{0,3})`;
+    const dateOrIP = String.raw`(?:${digit}{4}[-./]${digit}{1,2}[-./]${digit}{1,2}|${digit}{1,2}[-./]${digit}{1,2}[-./]${digit}{4}|${digit}{1,2}[/／]${digit}{4}|${digit}{1,3}(?:\.${digit}{1,3}){3})(?!${gap}${digit})`;
+    // Avoid restarting partway through a dotted, dashed or space-grouped identifier.
+    const phoneStart = String.raw`(?<![\p{L}\p{N}_])(?<!${digit}[.．\p{Pd}])(?!(?<=${digit}${space}{1,2})${digit})`;
+    const phoneEnd = String.raw`(?![\p{L}\p{N}_]|(?:[.．\p{Pd}]|${space}{1,2})${digit})`;
+    const phone = source => String.raw`${phoneStart}(?:${source})${extension}${phoneEnd}`;
+    const PHONE_REGEXES = [
+        // International access prefixes are outside the E.164 digit count.
+        phone(String.raw`(?:(?:[(（](?=[+＋]${digit}{1,3}[)）]))?[+＋]|0011|011|00)${space}{0,2}${phoneDigits(6, 15)}`),
+        phone(String.raw`(?!${dateOrIP})(?:${areaParen})?${phoneDigits(8, 15)}`),
+        // A slash can separate an area code from its subscriber number or two complete numbers.
+        phone(String.raw`(?!${dateOrIP})(?:0${digit}{1,4}|[+＋]${digit}{1,3}${space}{0,2}(?:[(（]0[)）]${space}{0,2})?${digit}{1,5})${space}{0,2}[/／]${space}{0,2}${phoneDigits(4, 10)}`),
+        // Short national numbers need a phone label or a distinctive printed grouping.
+        phone(String.raw`${phoneLabel}(?:${areaParen})?${phoneDigits(4, 7)}`),
+        phone(String.raw`[2-9]${digit}{2}[\p{Zs}\p{Pd}]${digit}{4}|${digit}{2,3}(?:${space}${digit}{2}){2}|${digit}(?:${space}${digit}{3}){2}|444${space}${digit}${space}${digit}{3}`),
+        // Seven keypad characters after a North American toll-free prefix, e.g. 1-800-FLOWERS.
+        phone(String.raw`(?:[+＋]?1[\p{Zs}\p{Pd}]?)?8(?:00|33|44|55|66|77|88)\p{Pd}[a-z\d](?:\p{Pd}?[a-z\d]){6}`)
+    ];
+
     /** @typedef {{ predefined: string|null, isOn: boolean, name: string, regexes: string[], action: string, parentLevels: number, parentRegex: string }} LegacyRule */
     const DEFAULT_PATTERNS = [
         { predefined: 'email', isOn: true, regexes: ["[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,63}\\b"], name: 'Email' },
-        { predefined: 'phone', isOn: false, regexes: [String.raw`\+?\b\d(?:[ ().-]*\d){7,}\b`], name: 'Phone' },
+        { predefined: 'phone', isOn: false, regexes: PHONE_REGEXES, name: 'Phone', legacyRegexes: [
+            String.raw`\+?\b\d[\d ().-]{6,}\d\b`,
+            String.raw`\+?\b\d(?:[ ().-]*\d){7,}\b`,
+            String.raw`(?:\+|\((?=\d{2,4}\)))?\b\d(?:[ ().–-]*\d){7,}\b`
+        ] },
         { predefined: 'address', isOn: true, regexes: ADDRESS_REGEXES, name: 'Addresses' }
     ];
 
@@ -71,7 +104,8 @@ const CopyMailSettings = (() => {
     /** @returns {LegacyRule} */
     function normalizeLegacyRule(rule, index) {
         const preset = DEFAULT_PATTERNS.find(item => item.predefined === rule.predefined ||
-            (!Object.hasOwn(rule, 'predefined') && item.regexes[0] === rule.regex && item.name === rule.name));
+            (!Object.hasOwn(rule, 'predefined') && item.name === rule.name &&
+                (item.regexes[0] === rule.regex || item.legacyRegexes?.includes(rule.regex))));
         const legacy = !Array.isArray(rule.regexes);
         const sources = preset?.regexes || (legacy ? [rule.regex] : rule.regexes);
         const name = typeof rule.name === 'string' ? rule.name.trim() : '';

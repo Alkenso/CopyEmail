@@ -58,6 +58,14 @@ npm test
 npm run check
 ```
 
+## Phone numbers
+
+Enable **Phone → Copy** to copy numbers as displayed, including country codes,
+local digits, punctuation and extensions. Short national numbers such as `3101`
+are recognized after a phone label such as `Tel:` or inside a `tel:` link.
+The tests check national, international and E.164 examples for every region in
+[Google’s libphonenumber](https://github.com/google/libphonenumber).
+
 ## Address lookup
 
 The enabled Addresses rule contains ten format families covering US/UK, European,

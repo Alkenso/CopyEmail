@@ -2,6 +2,7 @@ const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { PhoneNumberFormat, PhoneNumberUtil } = require('google-libphonenumber');
 
 function modules() {
     const sources = ['settings', 'patterns', 'scanner'].map(file => fs.readFileSync(path.join(__dirname, `../extension/app/${file}.js`), 'utf8')).join('\n');
@@ -18,6 +19,65 @@ test('phone matches count digits rather than spaces or punctuation', () => {
     for (const text of ['12345678', '+1 (212) 555-0123', '+48 123 456 789', '020 7946 0958', '212.555.0123']) {
         expect(pattern.matches({ text }).map(match => match.text), text).toEqual([text]);
     }
+    const text = '1–800–854–3680, (877) 412–7753';
+    expect(pattern.matches({ text }).map(match => match.text)).toEqual(['1–800–854–3680', '(877) 412–7753']);
+});
+
+test('phone rule preserves national and international display formats', () => {
+    const { settings, patterns } = modules();
+    const rule = settings.normalize().rules.find(rule => rule.builtinType === 'phone');
+    const pattern = new patterns.OrPattern(rule.patterns.map(source => new patterns.RegexPattern(source)));
+    const examples = [
+        '(506) 234-5678', '011 15-2345-6789', '(11) 96123-4567', '(2) 2123 4567',
+        '01 23 45 67 89', '030/123456', '+44 (0)20 7946 0958', '02 1234 5678',
+        '12 345 67 89', '(06 1) 234 5678', '(0-312) 34567', '8 (912) 345-67-89',
+        '०८१२३४ ५६७८९', '۰۲۱ ۲۳۴۵ ۶۷۸۹', '＋８１（３）１２３４－５６７８', '010-2000-0000',
+        '010 01234567', '02033 12 3456', '0712 123456', '0412 345 678', '13 83 87',
+        '410 1234', '32 10 00', '221 12 34', '444 1 444', '+690 3101', '+989601',
+        '(+48) 123-456-789', '(+1) (212) 555-0123', '+49 (0) 30 / 123456', '00 41 44 668 18 00', '011 41 44 668 18 00',
+        '+1 (212) 555‑0123 ext. 42', '020 7946 0958 x123', '+41-44-668-18-00;ext=123',
+        '1-800-FLOWERS'
+    ];
+    for (const number of examples) {
+        const text = '📍 ' + number + '!';
+        expect(pattern.matches({ text }).map(match => [match.index, match.value]), number).toEqual([[3, number]]);
+    }
+    for (const number of ['3101', '62889', '712 345', '20.12.34', '211-234', '123-4567']) {
+        const text = 'Tel: ' + number;
+        expect(pattern.matches({ text }).map(match => match.value), text).toEqual([number]);
+    }
+    for (const text of ['2026-11-19', '19/11/2026', '12/01/2026', '01/2026', '٢٠٢٦-١١-١٩', '192.168.10.10',
+        '12345678901234567890', '4111 1111 1111 1111',
+        'Invoice 62889', 'SKU_12345678', '08:30', '2026']) {
+        expect(pattern.matches({ text }), text).toHaveLength(0);
+    }
+    const list = '030/123456 / (877) 412–7753, +690 3101';
+    expect(pattern.matches({ text: list }).map(match => match.value)).toEqual(['030/123456', '(877) 412–7753', '+690 3101']);
+    const pair = '800-555-0123/800-555-0124';
+    expect(pattern.matches({ text: pair }).map(match => match.value)).toEqual(pair.split('/'));
+});
+
+test('phone rule covers the libphonenumber examples for every region and number type', () => {
+    const reference = PhoneNumberUtil.getInstance();
+    const { settings, patterns } = modules();
+    const rule = settings.normalize().rules.find(rule => rule.builtinType === 'phone');
+    const pattern = new patterns.OrPattern(rule.patterns.map(source => new patterns.RegexPattern(source)));
+    const formats = [PhoneNumberFormat.NATIONAL, PhoneNumberFormat.INTERNATIONAL, PhoneNumberFormat.E164];
+    const missed = [];
+    for (const region of reference.getSupportedRegions()) {
+        for (const type of reference.getSupportedTypesForRegion(region)) {
+            const number = reference.getExampleNumberForType(region, type);
+            if (!number) continue;
+            for (const format of formats) {
+                const display = reference.format(number, format);
+                const shortNational = format === PhoneNumberFormat.NATIONAL && display.replace(/\D/g, '').length < 8;
+                const text = (shortNational ? 'Tel: ' : '') + display;
+                const matches = pattern.matches({ text });
+                if (matches.length !== 1 || matches[0].value !== display) missed.push([region, display]);
+            }
+        }
+    }
+    expect(missed).toEqual([]);
 });
 
 const formatExamples = [
@@ -49,7 +109,7 @@ test('address variants retain house numbers and reject ordinary numbers and pros
     const pattern = new patterns.AddressPattern(new patterns.OrPattern(rule.patterns.map(source => new patterns.RegexPattern(source))));
     for (const text of ['221B Baker Street, London', '33 1/2 Main Street', 'Museumstraat 12', 'Calle Mayor 10',
         '霞ヶ関1丁目3-2', '3-16-4 Wakabayashi', '188 Dokseodang-ro, Seongdong-gu', 'No. 3 Financial Street',
-        '12 MG Road, Bengaluru 560001']) {
+        '12 MG Road, Bengaluru 560001', '3000 E 1st Avenue', '3000 E 1st Avenue\nDenver, CO 80206']) {
         expect(pattern.matches({ text }).map(match => match.text), text).toEqual([text]);
     }
     for (const text of ['Order 123', 'Meeting at 10:30', '2026-11-07', 'Version 3.16.4',
@@ -70,6 +130,15 @@ test('migrates legacy rules without losing disabled state or custom regexes', ()
     expect(saved.rules[1].patterns).toHaveLength(10);
     expect(saved.rules[1].enabledActions).toEqual(['openLink']);
     expect(settings.normalize(saved)).toEqual(saved);
+});
+
+test('untagged built-in phone settings receive new formats and explicit custom copies keep their regex', () => {
+    const { settings } = modules();
+    const legacy = { name: 'Phone', regex: String.raw`\+?\b\d(?:[ ().-]*\d){7,}\b`, isOn: true };
+    const [builtin, custom] = settings.normalize({ copyPatterns: [legacy, { ...legacy, predefined: null }] }).rules;
+    expect(builtin).toMatchObject({ builtinType: 'phone', enabledActions: ['copy'],
+        patterns: settings.normalize().rules.find(rule => rule.builtinType === 'phone').patterns });
+    expect(custom).toMatchObject({ builtinType: null, patterns: [legacy.regex] });
 });
 
 test('OR alternatives preserve backreferences and prefer longest overlapping match', () => {

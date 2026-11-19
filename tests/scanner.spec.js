@@ -27,6 +27,42 @@ test('scanner maps matches across inline nodes to one DOM range', async ({ page 
         text: 'alice@example.com', element: 'STRONG' }]);
 });
 
+test('a postal address spans a line break while other rules match each line separately', async ({ page }) => {
+    await loadScanner(page, '<p>3000 E 1st Avenue<br><span>Denver</span>, CO 80206</p><p>A<br>B</p>');
+    const result = await page.evaluate(() => {
+        const value = CopyMailSettings.normalize();
+        value.rules.unshift({ name: 'Line', enabledActions: ['copy'], patterns: ['A\\s+B', '^B$'] });
+        return new CopyMailScanner.Scanner({ revision: 1, value }).scan(document.querySelector('main'))
+            .map(({ value, location }) => [value, location.range.toString()]);
+    });
+    expect(result).toEqual([
+        ['3000 E 1st Avenue\nDenver, CO 80206', '3000 E 1st AvenueDenver, CO 80206'],
+        ['B', 'B']
+    ]);
+});
+
+test('short phone links supply context and preserve the displayed national format', async ({ page }) => {
+    await loadScanner(page, '<p><a href="tel:+6903101"><b>31</b>01</a></p><p>3101</p>' +
+        '<p><a href="tel:+376712345">712 345</a></p><a href="tel:+6903101">Call us</a>');
+    const result = await page.evaluate(() => {
+        const value = CopyMailSettings.normalize();
+        const state = { value, revision: 0 };
+        const scanner = new CopyMailScanner.Scanner(state);
+        const scan = () => scanner.scan(document.querySelector('main')).map(hit =>
+            [hit.rule.name, hit.value, hit.location.range.toString()]);
+        const disabled = scan();
+        value.rules.find(rule => rule.builtinType === 'phone').enabledActions = ['copy'];
+        state.revision++;
+        const enabled = scan();
+        value.rules.unshift({ name: 'Code', enabledActions: ['copy'], patterns: ['^3101$'] });
+        state.revision++;
+        return { disabled, enabled, withCustom: scan() };
+    });
+    expect(result.disabled).toEqual([]);
+    expect(result.enabled).toEqual([['Phone', '3101', '3101'], ['Phone', '712 345', '712 345']]);
+    expect(result.withCustom.filter(([name]) => name === 'Code')).toHaveLength(2);
+});
+
 test('scanner recompiles only after the settings revision changes', async ({ page }) => {
     await loadScanner(page, '<p>ORDER-123 INVOICE-456</p>');
     const result = await page.evaluate(() => {
